@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 260" role="img">
+  <rect width="1200" height="260" rx="20" fill="#f3f6f1"/>
+  <path d="M91 108H1100" stroke="#b8cbbd" stroke-width="4" stroke-dasharray="8 8"/>
+  <g font-family="Arial, sans-serif" text-anchor="middle">
+    <g fill="#176b52">
+      <circle cx="90" cy="110" r="29"/><circle cx="235" cy="110" r="29"/><circle cx="380" cy="110" r="29"/><circle cx="525" cy="110" r="29"/>
+      <circle cx="670" cy="110" r="29"/><circle cx="815" cy="110" r="29"/><circle cx="960" cy="110" r="29"/><circle cx="1105" cy="110" r="29"/>
+    </g>
+    <g fill="#fff" font-size="20" font-weight="700">
+      <text x="90" y="117">1</text><text x="235" y="117">2</text><text x="380" y="117">3</text><text x="525" y="117">4</text>
+      <text x="670" y="117">5</text><text x="815" y="117">6</text><text x="960" y="117">7</text><text x="1105" y="117">8</text>
+    </g>
+    <g fill="#26372e" font-size="14" font-weight="600">
+      <text x="90" y="168"><tspan x="90">Kirim</tspan><tspan x="90" dy="18">permohonan</tspan></text>
+      <text x="235" y="168"><tspan x="235">Verifikasi</tspan><tspan x="235" dy="18">berkas</tspan></text>
+      <text x="380" y="168"><tspan x="380">Balasan</tspan><tspan x="380" dy="18">resmi</tspan></text>
+      <text x="525" y="168"><tspan x="525">Pakta</tspan><tspan x="525" dy="18">integritas</tspan></text>
+      <text x="670" y="168"><tspan x="670">Penempatan</tspan><tspan x="670" dy="18">dan pembimbing</tspan></text>
+      <text x="815" y="168"><tspan x="815">Pelaksanaan</tspan><tspan x="815" dy="18">magang</tspan></text>
+      <text x="960" y="168"><tspan x="960">Laporan</tspan><tspan x="960" dy="18">dan presentasi</tspan></text>
+      <text x="1105" y="168"><tspan x="1105">Surat</tspan><tspan x="1105" dy="18">keterangan</tspan></text>
+    </g>
+  </g>
+</svg>

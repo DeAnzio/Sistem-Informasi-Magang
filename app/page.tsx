@@ -1,69 +1,98 @@
+import Link from "next/link";
 import Image from "next/image";
+import PublicLayout from "@/components/public-layout";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <PublicLayout activePath="/">
+      <section className="landing-hero" aria-labelledby="hero-title">
+        <Image className="landing-hero-image" src="/magang-hero.svg" alt="" fill priority sizes="100vw" />
+        <div className="landing-hero-shade" />
+        <div className="landing-hero-copy">
+          <p className="public-eyebrow">LAYANAN MAGANG · BPN D.I. YOGYAKARTA</p>
+          <h1 id="hero-title">Belajar dari tanah,<br /><em>bertumbuh untuk negeri.</em></h1>
+          <p>Ruang bagi siswa dan mahasiswa untuk mengenal pelayanan pertanahan dan menerapkan ilmu dalam lingkungan kerja nyata.</p>
+          <div className="landing-hero-actions">
+            <Link className="public-button" href="/daftar">Ajukan permohonan <span aria-hidden="true">→</span></Link>
+            <Link className="hero-text-link" href="/slot">Lihat informasi kuota <span aria-hidden="true">↗</span></Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+
+      <div className="public-container landing-content">
+        <Link className="survey-banner" href="/survey">
+          <span className="survey-banner-icon" aria-hidden="true">◎</span>
+          <span><strong>Bantu kami meningkatkan layanan</strong><small>Sampaikan pengalaman Anda melalui Survey Kepuasan Pengguna Layanan Magang.</small></span>
+          <span className="survey-banner-arrow" aria-hidden="true">↗</span>
+        </Link>
+
+        <p className="service-intro">Layanan magang merupakan kesempatan bagi siswa dan mahasiswa untuk menerapkan ilmu pengetahuan dalam situasi kerja nyata, sekaligus mengenal proses pelayanan pertanahan di lingkungan BPN D.I. Yogyakarta.</p>
+
+        <section className="info-section" aria-labelledby="requirements-title">
+          <h2 id="requirements-title">Persyaratan Magang/Praktek Kerja Lapangan</h2>
+          <ol>
+            <li>Mengajukan surat permohonan resmi dari lembaga pendidikan.</li>
+            <li>Berstatus sebagai siswa atau mahasiswa aktif selama masa magang.</li>
+            <li>Mengikuti program sekurang-kurangnya 1 bulan dan paling lama 12 bulan.</li>
+            <li>Memperoleh penempatan sesuai formasi dan ketersediaan kuota.</li>
+            <li>Bersedia menaati ketentuan dan menandatangani <Link href="#documents-title">Pakta Integritas</Link>.</li>
+          </ol>
+        </section>
+
+        <section className="info-section" aria-labelledby="documents-title">
+          <h2 id="documents-title">Dokumen yang harus disiapkan</h2>
+          <ol>
+            <li>Surat permohonan dari lembaga pendidikan yang memuat:
+              <ul>
+                <li>nama, NIM/NIS, dan program studi;</li>
+                <li>bidang atau unit tujuan;</li>
+                <li>periode magang yang diajukan;</li>
+                <li>nama dosen/guru penanggung jawab; dan</li>
+                <li>kontak yang dapat dihubungi.</li>
+              </ul>
+            </li>
+            <li>Daftar riwayat hidup dan dokumen pendukung dari peserta.</li>
+            <li>Pakta Integritas yang telah ditandatangani sesuai arahan petugas.</li>
+          </ol>
+        </section>
+
+        <section className="info-section" aria-labelledby="steps-title">
+          <h2 id="steps-title">Tahapan Pengajuan</h2>
+          <ol>
+            <li>Lembaga pendidikan mengirimkan surat permohonan.</li>
+            <li>Petugas memeriksa kelengkapan dan ketersediaan formasi.</li>
+            <li>Hasil pemeriksaan disampaikan melalui kanal kontak pemohon.</li>
+            <li>Peserta melengkapi dan menandatangani Pakta Integritas.</li>
+            <li>Peserta memperoleh pembimbing dan penempatan unit kerja.</li>
+            <li>Peserta mengikuti kegiatan magang sesuai jadwal dan tata tertib.</li>
+            <li>Peserta menyusun laporan dan mempresentasikan hasil magang.</li>
+            <li>Surat keterangan diberikan setelah seluruh kewajiban diselesaikan.</li>
+          </ol>
+          <Image className="process-illustration" src="/alur-magang.svg" alt="Infografis delapan tahapan pengajuan magang, dari pengiriman surat hingga surat keterangan." width={1200} height={260} sizes="(max-width: 1140px) 100vw, 1140px" />
+        </section>
+
+        <section className="info-section">
+          <h2>Standar Pelayanan dan Standar Prosedur Operasional</h2>
+          <ol>
+            <li>Standar Pelayanan Magang/Praktek Kerja Lapangan dapat dilihat <Link href="/ketentuan">di sini</Link>.</li>
+            <li>Standar Prosedur Operasional dapat diminta melalui petugas pengelola magang.</li>
+          </ol>
+        </section>
+
+        <section className="info-section">
+          <h2>Alamat Pengiriman Surat Permohonan</h2>
+          <ol>
+            <li>Surat dapat disampaikan langsung ke Kantor Wilayah BPN D.I. Yogyakarta.</li>
+            <li>Pengiriman melalui email mengikuti alamat resmi yang tercantum pada halaman <Link href="/kontak">Kontak Kami</Link>.</li>
+          </ol>
+          <p className="content-note">Mohon konfirmasi alamat lengkap dan kanal pengiriman resmi kepada instansi sebelum mengirimkan dokumen.</p>
+        </section>
+
+        <section className="info-section questions-panel">
+          <h2>Ada pertanyaan?</h2>
+          <p><em>Silakan hubungi petugas pengelola magang melalui informasi pada halaman <Link href="/kontak">Kontak Kami</Link>.</em></p>
+        </section>
+      </div>
+    </PublicLayout>
   );
 }

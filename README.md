@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistem Permagangan
 
-## Getting Started
+Portal permagangan berbasis Next.js App Router, TypeScript, Supabase, dan Nodemailer.
 
-First, run the development server:
+## Menjalankan aplikasi
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buat file `.env` atau `.env.local` di akar proyek dan isi variabel yang diperlukan. Jika belum memiliki salah satunya, salin `.env.example` menjadi `.env.local` dengan `Copy-Item .env.example .env.local`, lalu isi nilainya. Next.js memuat kedua file tersebut secara otomatis; jika keduanya ada, `.env.local` memiliki prioritas. Jangan commit file environment yang berisi kredensial.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Buka http://localhost:3000. Halaman publik dan area admin tersedia, tetapi fitur yang berhubungan dengan layanan eksternal memerlukan konfigurasi berikut.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Konfigurasi Supabase
 
-## Learn More
+1. Buat proyek Supabase.
+2. Jalankan seluruh isi `supabase/schema.sql` di SQL Editor.
+   Jika database sudah memakai model lama berbasis `periode`/`slots`, jalankan `supabase/migration_kapasitas_divisi.sql` sebagai gantinya (jangan jalankan skema baru di atas database lama).
+3. Buat bucket Storage bernama `berkas`, set sebagai **private**, batas file 5 MB, MIME `application/pdf,image/jpeg,image/png`.
+4. Buat user admin melalui Authentication → Users, lalu masukkan UUID dan nama admin:
 
-To learn more about Next.js, take a look at the following resources:
+```sql
+insert into public.admins (user_id, nama)
+values ('UUID-USER-AUTH', 'Nama Admin');
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Isi URL, anon key, dan service role key pada `.env` atau `.env.local`. Service role key hanya digunakan oleh route server.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Keamanan formulir pendaftaran
 
-## Deploy on Vercel
+Verifikasi Cloudflare Turnstile sedang dinonaktifkan sementara pada formulir pendaftaran. Validasi data, pemeriksaan kuota di server, pembatasan tipe dan ukuran berkas, serta URL unggah bertanda tangan tetap aktif. Aktifkan kembali CAPTCHA sebelum portal dibuka secara publik atau dipakai produksi.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Konfigurasi email
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Isi kredensial SMTP di `.env` atau `.env.local`. Hasil keputusan dikirim ke pendaftar dan disimpan ke tabel `email_logs`. Pengiriman yang gagal dapat dicoba ulang dari halaman detail verifikasi.
+
+## Rute aplikasi
+
+- `/` informasi layanan magang
+- `/ketentuan` ketentuan magang
+- `/dokumen` mengarahkan ke informasi kuota magang (alias lama)
+- `/survey` informasi survey kepuasan
+- `/kontak` kontak dan peta kantor
+- `/slot` informasi kapasitas aktif tiap divisi
+- `/daftar` formulir divisi dan tanggal magang dengan unggah berkas privat
+- `/admin/login` login admin
+- `/admin` dashboard ringkasan
+- `/admin/slot` ringkasan dan pengaturan kuota tiap divisi
+- `/admin/pemagang/baru` input peserta manual
+- `/admin/verifikasi` antrean pendaftar
+- `/admin/verifikasi/[id]` detail, keputusan, dan kirim ulang email
+
+Akses `/admin/*` diperiksa melalui `proxy.ts`, menggunakan autentikasi Supabase dan tabel `admins`. API admin juga melakukan pemeriksaan otorisasi sendiri.
+
+## Pemeriksaan
+
+```bash
+npm run lint
+npm run build
+```
+
+Jangan commit `.env.local`. Sebelum produksi, aktifkan kembali dan konfigurasi Turnstile, pastikan persetujuan penyimpanan data, bucket privat, SMTP instansi, dan environment variables Vercel sudah benar.
