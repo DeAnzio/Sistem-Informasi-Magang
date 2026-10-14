@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createRegistrationTicket } from "@/lib/registration-ticket";
+import { verifyRegistrationRecaptcha } from "@/lib/recaptcha";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,7 @@ const requestSchema = z.object({
   divisi_id: z.uuid(),
   tanggal_mulai: z.iso.date(),
   tanggal_selesai: z.iso.date(),
+  recaptchaToken: z.string().min(1).max(4096),
   berkas_cv: z.object({ type: z.string(), size: z.number().int().positive().max(5 * 1024 * 1024) }),
   berkas_surat_pengantar: z.object({ type: z.string(), size: z.number().int().positive().max(5 * 1024 * 1024) }),
 }).refine(({ tanggal_mulai, tanggal_selesai }) => {
@@ -33,6 +35,18 @@ export async function POST(request: Request) {
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Periksa data dan berkas pendaftaran." }, { status: 400 });
+  const recaptcha = await verifyRegistrationRecaptcha(parsed.data.recaptchaToken, new URL(request.url).hostname);
+  if (!recaptcha.ok) {
+    if (recaptcha.reason === "rejected") {
+      console.warn("Pemeriksaan reCAPTCHA menolak permintaan pendaftaran.");
+      return Response.json({ error: "Pemeriksaan keamanan gagal. Muat ulang halaman dan coba kembali." }, { status: 403 });
+    }
+    if (recaptcha.reason === "request_failed") {
+      console.error("Layanan verifikasi reCAPTCHA tidak dapat dihubungi.");
+      return Response.json({ error: "Layanan pemeriksaan keamanan sedang tidak tersedia. Silakan coba kembali." }, { status: 503 });
+    }
+    return Response.json({ error: "reCAPTCHA belum dikonfigurasi pada server." }, { status: 503 });
+  }
   for (const file of [parsed.data.berkas_cv, parsed.data.berkas_surat_pengantar]) {
     if (!acceptedTypes.has(file.type)) return Response.json({ error: "Berkas harus berupa PDF, JPG, atau PNG." }, { status: 400 });
   }

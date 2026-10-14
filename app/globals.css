@@ -629,6 +629,8 @@ img { max-width: 100%; display: block; }
 .public-site .form-aside ul { display: grid; gap: 8px; padding-left: 19px; }
 .public-site .form-message { margin: 0; padding: 15px 17px; border-left: 3px solid var(--public-green); border-radius: 0 5px 5px 0; background: #f2f7f2; color: #405348; font-size: 14px; line-height: 1.6; }
 .public-site .form-message.error { border-color: #a34037; background: #fbf1ef; color: #852c25; }
+.public-site .recaptcha-notice { margin: 12px 0 0; color: #59665f; font-size: 11px; line-height: 1.6; }
+.public-site .recaptcha-notice a { color: var(--public-green); text-decoration: underline; }
 @media (max-width: 1000px) {
   .public-header-inner { gap: 17px; }
   .public-brand strong { font-size: 9px; }

@@ -16,12 +16,11 @@ export default function KontakPage() {
           <p className="public-eyebrow">INFORMASI KANTOR</p>
           <h2 id="contact-title">Kantor BPN D.I. Yogyakarta</h2>
           <dl>
-            <div><dt>Alamat</dt><dd>Alamat lengkap kantor perlu dikonfirmasi melalui kanal resmi instansi.</dd></div>
+            <div><dt>Alamat</dt><dd>Jln. Kusumanegara No.161, Muja Muju, Umbulharjo, Kota Yogyakarta, Daerah Istimewa Yogyakarta 55165</dd></div>
             <div><dt>Telepon dan Fax</dt><dd>Informasi nomor telepon dan fax belum tersedia.</dd></div>
             <div><dt>Email</dt><dd>Alamat email layanan magang belum tersedia.</dd></div>
             <div><dt>Narahubung</dt><dd>Petugas pengelola magang pada unit kerja terkait.</dd></div>
           </dl>
-          <p className="content-note">Peta menampilkan hasil pencarian nama instansi. Pastikan alamat dan kanal kontak resmi sebelum berkunjung atau mengirim dokumen.</p>
         </section>
       </div>
     </PublicLayout>

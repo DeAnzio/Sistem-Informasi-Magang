@@ -1,12 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import Script from "next/script";
 import { useState, type FormEvent } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Division = { id: string; nama: string };
 
-export default function RegistrationForm({ divisions, initialDivisionId }: { divisions: Division[]; initialDivisionId: string }) {
+declare global {
+  interface Window {
+    grecaptcha?: {
+      ready(callback: () => void): void;
+      execute(siteKey: string, options: { action: string }): Promise<string>;
+    };
+  }
+}
+
+export default function RegistrationForm({ divisions, initialDivisionId, recaptchaSiteKey }: { divisions: Division[]; initialDivisionId: string; recaptchaSiteKey: string }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +39,10 @@ export default function RegistrationForm({ divisions, initialDivisionId }: { div
       const cv = data.get("berkas_cv");
       const surat = data.get("berkas_surat_pengantar");
       if (!(cv instanceof File) || !(surat instanceof File)) throw new Error("CV dan surat pengantar wajib diunggah.");
+      const recaptcha = window.grecaptcha;
+      if (!recaptcha) throw new Error("Pemeriksaan keamanan belum siap. Muat ulang halaman dan coba kembali.");
+      await new Promise<void>((resolve) => recaptcha.ready(resolve));
+      const recaptchaToken = await recaptcha.execute(recaptchaSiteKey, { action: "submit_registration" });
       const uploadResponse = await fetch("/api/daftar/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -38,6 +52,7 @@ export default function RegistrationForm({ divisions, initialDivisionId }: { div
           divisi_id: data.get("divisi_id"),
           tanggal_mulai: tanggalMulai,
           tanggal_selesai: tanggalSelesai,
+          recaptchaToken,
           berkas_cv: { type: cv.type, size: cv.size },
           berkas_surat_pengantar: { type: surat.type, size: surat.size },
         }),
@@ -70,6 +85,7 @@ export default function RegistrationForm({ divisions, initialDivisionId }: { div
 
   return (
     <div className="form-layout">
+      <Script src={`https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(recaptchaSiteKey)}`} strategy="afterInteractive" />
       <form onSubmit={handleSubmit}>
         <div className="form-grid">
           <div className="field field-wide"><label htmlFor="divisi_id">Divisi yang dituju</label><select id="divisi_id" name="divisi_id" defaultValue={initialDivisionId} required><option value="" disabled>Pilih divisi</option>{divisions.map((division) => <option value={division.id} key={division.id}>{division.nama}</option>)}</select></div>
@@ -85,6 +101,7 @@ export default function RegistrationForm({ divisions, initialDivisionId }: { div
           <div className="field"><label htmlFor="berkas_surat_pengantar">Surat pengantar</label><input id="berkas_surat_pengantar" name="berkas_surat_pengantar" type="file" accept="application/pdf,image/jpeg,image/png" required /><small>PDF, JPG, PNG · maksimal 5 MB</small></div>
           <div className="field field-wide"><button className="button button-green" type="submit" disabled={submitting}>{submitting ? "Mengirim pendaftaran…" : "Kirim pendaftaran"} <span aria-hidden="true">→</span></button></div>
         </div>
+        <p className="recaptcha-notice">Formulir ini dilindungi reCAPTCHA. <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Kebijakan Privasi</a> dan <a href="https://policies.google.com/terms" target="_blank" rel="noreferrer">Persyaratan Layanan</a> Google berlaku.</p>
         {message && <p className={`form-message${error ? " error" : ""}`} role="status">{message}</p>}
       </form>
       <aside className="form-aside"><h2>Sebelum mengirim</h2><p>Pastikan informasi yang diberikan sesuai dokumen resmi agar proses verifikasi berjalan lancar.</p><ul><li>Gunakan alamat email yang aktif.</li><li>Unggah berkas dalam format PDF, JPG, atau PNG.</li><li>Durasi magang maksimal 366 hari.</li><li>Ketersediaan kuota dihitung dari tanggal yang Anda ajukan.</li></ul><Link className="text-link" href="/slot">Lihat informasi kuota ↗</Link></aside>

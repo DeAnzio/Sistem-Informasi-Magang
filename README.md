@@ -30,7 +30,7 @@ values ('UUID-USER-AUTH', 'Nama Admin');
 
 ## Keamanan formulir pendaftaran
 
-Verifikasi Cloudflare Turnstile sedang dinonaktifkan sementara pada formulir pendaftaran. Validasi data, pemeriksaan kuota di server, pembatasan tipe dan ukuran berkas, serta URL unggah bertanda tangan tetap aktif. Aktifkan kembali CAPTCHA sebelum portal dibuka secara publik atau dipakai produksi.
+Formulir pendaftaran dilindungi reCAPTCHA v3. Daftarkan domain aplikasi di Google reCAPTCHA Admin Console, pilih reCAPTCHA v3, lalu atur `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` dan `RECAPTCHA_SECRET_KEY` pada `.env` atau `.env.local` (secret key hanya di server). Verifikasi dilakukan di server sebelum URL unggah diterbitkan; action harus `submit_registration`, hostname harus cocok, dan skor minimum adalah `0.5`. Formulir tidak tersedia bila kunci belum diatur. Validasi data, pemeriksaan kuota di server, pembatasan tipe dan ukuran berkas, serta URL unggah bertanda tangan tetap aktif.
 
 ## Konfigurasi email
 
@@ -61,4 +61,4 @@ npm run lint
 npm run build
 ```
 
-Jangan commit `.env.local`. Sebelum produksi, aktifkan kembali dan konfigurasi Turnstile, pastikan persetujuan penyimpanan data, bucket privat, SMTP instansi, dan environment variables Vercel sudah benar.
+Jangan commit file environment. Sebelum produksi, pastikan domain reCAPTCHA, persetujuan pemrosesan data, bucket privat, SMTP instansi, dan environment variables Vercel sudah benar.
