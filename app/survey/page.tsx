@@ -1,12 +1,13 @@
 import Link from "next/link";
-import Image from "next/image";
 import PublicLayout from "@/components/public-layout";
 
 export default function SurveyPage() {
   return (
     <PublicLayout activePath="/survey" title="Survey Kepuasan Pengguna Layanan Magang">
       <article className="public-container public-content survey-page">
-        <Image className="survey-illustration" src="/survey-illustration.svg" alt="Ilustrasi peserta memberikan umpan balik layanan." width={1200} height={360} sizes="(max-width: 1140px) 100vw, 1140px" />
+        <div className="survey-illustration-placeholder" aria-label="Placeholder ilustrasi survey">
+          Tempat ilustrasi survey
+        </div>
         <div className="survey-letter">
           <p>Yth. Pengguna Layanan Magang,</p>
           <p>Terima kasih telah memilih layanan magang/praktek kerja lapangan BPN D.I. Yogyakarta sebagai bagian dari proses pembelajaran Anda.</p>

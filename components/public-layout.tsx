@@ -25,7 +25,7 @@ export default function PublicLayout({
       <header className="public-header">
         <div className="public-header-inner">
           <Link className="public-brand" href="/" aria-label="BPN D.I. Yogyakarta, beranda">
-            <Image src="/bpn-mark.svg" alt="" width={48} height={48} />
+            <Image src="/bpn-logo.png" alt="" width={48} height={48} />
             <span><strong>BADAN PERTANAHAN NASIONAL</strong><small>D.I. YOGYAKARTA</small></span>
           </Link>
           <nav className="public-nav" aria-label="Navigasi utama">

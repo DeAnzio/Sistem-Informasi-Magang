@@ -5,17 +5,10 @@ import PublicLayout from "@/components/public-layout";
 export default function Home() {
   return (
     <PublicLayout activePath="/">
-      <section className="landing-hero" aria-labelledby="hero-title">
-        <Image className="landing-hero-image" src="/magang-hero.svg" alt="" fill priority sizes="100vw" />
-        <div className="landing-hero-shade" />
-        <div className="landing-hero-copy">
-          <p className="public-eyebrow">LAYANAN MAGANG · BPN D.I. YOGYAKARTA</p>
-          <h1 id="hero-title">Belajar dari tanah,<br /><em>bertumbuh untuk negeri.</em></h1>
-          <p>Ruang bagi siswa dan mahasiswa untuk mengenal pelayanan pertanahan dan menerapkan ilmu dalam lingkungan kerja nyata.</p>
-          <div className="landing-hero-actions">
-            <Link className="public-button" href="/daftar">Ajukan permohonan <span aria-hidden="true">→</span></Link>
-            <Link className="hero-text-link" href="/slot">Lihat informasi kuota <span aria-hidden="true">↗</span></Link>
-          </div>
+      <section className="landing-hero poster-hero" aria-label="Placeholder poster layanan magang">
+        <div className="poster-placeholder">
+          <span>Poster layanan magang</span>
+          <small>Tempatkan poster di sini</small>
         </div>
       </section>
 
@@ -29,7 +22,7 @@ export default function Home() {
         <p className="service-intro">Layanan magang merupakan kesempatan bagi siswa dan mahasiswa untuk menerapkan ilmu pengetahuan dalam situasi kerja nyata, sekaligus mengenal proses pelayanan pertanahan di lingkungan BPN D.I. Yogyakarta.</p>
 
         <section className="info-section" aria-labelledby="requirements-title">
-          <h2 id="requirements-title">Persyaratan Magang/Praktek Kerja Lapangan</h2>
+          <h2 id="requirements-title">A. Persyaratan Magang/Praktek Kerja Lapangan</h2>
           <ol>
             <li>Mengajukan surat permohonan resmi dari lembaga pendidikan.</li>
             <li>Berstatus sebagai siswa atau mahasiswa aktif selama masa magang.</li>
@@ -40,7 +33,7 @@ export default function Home() {
         </section>
 
         <section className="info-section" aria-labelledby="documents-title">
-          <h2 id="documents-title">Dokumen yang harus disiapkan</h2>
+          <h2 id="documents-title">B. Dokumen yang harus disiapkan</h2>
           <ol>
             <li>Surat permohonan dari lembaga pendidikan yang memuat:
               <ul>
@@ -57,7 +50,7 @@ export default function Home() {
         </section>
 
         <section className="info-section" aria-labelledby="steps-title">
-          <h2 id="steps-title">Tahapan Pengajuan</h2>
+          <h2 id="steps-title">C. Tahapan Pengajuan</h2>
           <ol>
             <li>Lembaga pendidikan mengirimkan surat permohonan.</li>
             <li>Petugas memeriksa kelengkapan dan ketersediaan formasi.</li>
@@ -72,7 +65,7 @@ export default function Home() {
         </section>
 
         <section className="info-section">
-          <h2>Standar Pelayanan dan Standar Prosedur Operasional</h2>
+          <h2>D. Standar Pelayanan dan Standar Prosedur Operasional</h2>
           <ol>
             <li>Standar Pelayanan Magang/Praktek Kerja Lapangan dapat dilihat <Link href="/ketentuan">di sini</Link>.</li>
             <li>Standar Prosedur Operasional dapat diminta melalui petugas pengelola magang.</li>
