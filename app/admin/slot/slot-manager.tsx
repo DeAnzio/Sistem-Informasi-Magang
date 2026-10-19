@@ -63,7 +63,7 @@ export default function SlotManager({ divisions: initialDivisions }: { divisions
                 <td>{division.sisa}</td>
                 <td>{editingId === division.divisi_id ? (
                   <div className="quota-edit">
-                    <input aria-label={`Kuota untuk ${division.divisi_nama}`} type="number" min="0" max="500" value={quota} onChange={(event) => setQuota(event.target.value)} />
+                    <input aria-label={`Kuota untuk ${division.divisi_nama}`} type="number" min="0" max="500" value={quota ?? ""} onChange={(event) => setQuota(event.target.value)} />
                     <button className="button button-green button-small" type="button" disabled={busy || quota === ""} onClick={() => saveQuota(division.divisi_id)}>Simpan</button>
                     <button className="button button-dark button-small" type="button" disabled={busy} onClick={() => { setEditingId(""); setQuota(""); }}>Batal</button>
                   </div>

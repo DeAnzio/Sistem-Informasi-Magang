@@ -49,7 +49,7 @@ create table public.applicants (
 create table public.email_logs (
   id uuid primary key default gen_random_uuid(),
   applicant_id uuid not null references public.applicants(id) on delete cascade,
-  tipe text not null check (tipe in ('diterima', 'ditolak')),
+  tipe text not null check (tipe in ('diterima', 'ditolak', 'dibatalkan', 'jadwal_diubah')),
   status_kirim text not null check (status_kirim in ('terkirim', 'gagal')),
   error_pesan text,
   sent_at timestamptz not null default now()

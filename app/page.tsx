@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import PublicLayout from "@/components/public-layout";
 
 export default function Home() {
@@ -55,13 +54,14 @@ export default function Home() {
             <li>Lembaga pendidikan mengirimkan surat permohonan.</li>
             <li>Petugas memeriksa kelengkapan dan ketersediaan formasi.</li>
             <li>Hasil pemeriksaan disampaikan melalui kanal kontak pemohon.</li>
-            <li>Peserta melengkapi dan menandatangani Pakta Integritas.</li>
             <li>Peserta memperoleh pembimbing dan penempatan unit kerja.</li>
             <li>Peserta mengikuti kegiatan magang sesuai jadwal dan tata tertib.</li>
             <li>Peserta menyusun laporan dan mempresentasikan hasil magang.</li>
             <li>Surat keterangan diberikan setelah seluruh kewajiban diselesaikan.</li>
           </ol>
-          <Image className="process-illustration" src="/alur-magang.svg" alt="Infografis delapan tahapan pengajuan magang, dari pengiriman surat hingga surat keterangan." width={1200} height={260} sizes="(max-width: 1140px) 100vw, 1140px" />
+          <div className="process-illustration" role="img" aria-label="Placeholder infografis tahapan pengajuan magang">
+            Tempat infografis tahapan pengajuan magang
+          </div>
         </section>
 
         <section className="info-section">
