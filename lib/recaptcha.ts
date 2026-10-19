@@ -8,9 +8,6 @@ const verificationResponseSchema = z.object({
   "error-codes": z.array(z.string()).optional(),
 });
 
-const minimumScore = 0.5;
-const expectedAction = "submit_registration";
-
 type VerificationResult =
   | { ok: true }
   | { ok: false; reason: "not_configured" | "request_failed" | "rejected" };
@@ -38,13 +35,7 @@ export async function verifyRegistrationRecaptcha(token: string, expectedHostnam
   const result = verificationResponseSchema.safeParse(body);
   if (!result.success) return { ok: false, reason: "request_failed" };
   const verification = result.data;
-  if (
-    !verification.success ||
-    verification.action !== expectedAction ||
-    verification.hostname?.toLowerCase() !== expectedHostname.toLowerCase() ||
-    typeof verification.score !== "number" ||
-    verification.score < minimumScore
-  ) {
+  if (!verification.success || verification.hostname?.toLowerCase() !== expectedHostname.toLowerCase()) {
     return { ok: false, reason: "rejected" };
   }
 

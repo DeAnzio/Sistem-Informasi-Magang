@@ -679,6 +679,7 @@ img { max-width: 100%; display: block; }
 .public-site .button { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 14px; padding: 0 19px; border: 0; border-radius: 5px; background: var(--public-green); color: #fff; cursor: pointer; font: 700 14px Arial, Helvetica, sans-serif; }
 .public-site .button:hover { background: var(--public-green-dark); }
 .public-site .button:disabled { cursor: wait; opacity: .55; }
+.public-site .recaptcha-widget { min-height: 78px; margin-top: 20px; }
 .public-site .form-aside { padding: 22px; border: 1px solid var(--public-line); border-top: 3px solid var(--public-green); border-radius: 5px; background: #f7f7f7; }
 .public-site .form-aside h2 { margin: 0 0 12px; color: #1e1e1e; font-size: 20px; }
 .public-site .form-aside p, .public-site .form-aside li { color: #595959; font-size: 14px; line-height: 1.7; }
