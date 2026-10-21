@@ -3,26 +3,25 @@ import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createRegistrationTicket } from "@/lib/registration-ticket";
 import { verifyRegistrationRecaptcha } from "@/lib/recaptcha";
+import { isDurasiMagangValid } from "@/lib/tanggal";
 
 export const runtime = "nodejs";
 
 const requestSchema = z.object({
   nama: z.string().trim().min(2).max(120),
   email: z.email().max(254),
-  no_hp: z.string().trim().min(8).max(30),
+  no_hp: z.string().regex(/^[0-9]{8,13}$/, "Nomor HP harus berisi 8 sampai 13 digit angka."),
   asal_kampus: z.string().trim().min(2).max(160),
-  jurusan: z.string().trim().min(2).max(160),
-  nim: z.string().trim().min(2).max(50),
-  divisi_id: z.uuid(),
+  jurusan: z.string().trim().min(2).max(30),
+  nim: z.string().regex(/^[0-9]{2,15}$/, "NIM harus berisi 2 sampai 15 digit angka."),
   tanggal_mulai: z.iso.date(),
   tanggal_selesai: z.iso.date(),
   recaptchaToken: z.string().min(1).max(4096),
   berkas_cv: z.object({ type: z.string(), size: z.number().int().positive().max(5 * 1024 * 1024) }),
   berkas_surat_pengantar: z.object({ type: z.string(), size: z.number().int().positive().max(5 * 1024 * 1024) }),
 }).refine(({ tanggal_mulai, tanggal_selesai }) => {
-  const duration = (Date.parse(`${tanggal_selesai}T00:00:00Z`) - Date.parse(`${tanggal_mulai}T00:00:00Z`)) / 86_400_000;
-  return duration > 0 && duration <= 366;
-}, { path: ["tanggal_selesai"], message: "Tanggal selesai harus setelah tanggal mulai dan durasi maksimal 366 hari." });
+  return isDurasiMagangValid(tanggal_mulai, tanggal_selesai);
+}, { path: ["tanggal_selesai"], message: "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." });
 
 const acceptedTypes = new Map([["application/pdf", "pdf"], ["image/jpeg", "jpg"], ["image/png", "png"]]);
 
@@ -53,16 +52,6 @@ export async function POST(request: Request) {
 
   try {
     const supabase = createSupabaseAdminClient();
-    const { data: division, error: divisionError } = await supabase.from("divisi").select("id").eq("id", parsed.data.divisi_id).eq("aktif", true).maybeSingle();
-    if (divisionError || !division) return Response.json({ error: "Divisi permagangan tidak ditemukan atau tidak aktif." }, { status: 404 });
-    const { data: remainingCapacity, error: capacityError } = await supabase.rpc("sisa_kuota_rentang", {
-      p_divisi: parsed.data.divisi_id,
-      p_mulai: parsed.data.tanggal_mulai,
-      p_selesai: parsed.data.tanggal_selesai,
-    });
-    if (capacityError) return Response.json({ error: "Kapasitas untuk tanggal tersebut belum dapat diperiksa." }, { status: 503 });
-    if (remainingCapacity <= 0) return Response.json({ error: "Kuota divisi telah penuh pada rentang tanggal yang dipilih." }, { status: 409 });
-
     const applicantId = randomUUID();
     const files = {
       berkas_cv: `${applicantId}/cv.${acceptedTypes.get(parsed.data.berkas_cv.type)}`,
@@ -96,7 +85,6 @@ export async function POST(request: Request) {
         asal_kampus: parsed.data.asal_kampus,
         jurusan: parsed.data.jurusan,
         nim: parsed.data.nim,
-        divisi_id: parsed.data.divisi_id,
         tanggal_mulai: parsed.data.tanggal_mulai,
         tanggal_selesai: parsed.data.tanggal_selesai,
       },

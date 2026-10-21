@@ -8,10 +8,10 @@ const manualApplicantTicketSchema = z.object({
   applicant: z.object({
     nama: z.string(),
     email: z.email(),
-    no_hp: z.string(),
+    no_hp: z.string().regex(/^[0-9]{8,13}$/),
     asal_kampus: z.string(),
-    jurusan: z.string(),
-    nim: z.string(),
+    jurusan: z.string().min(2).max(30),
+    nim: z.string().regex(/^[0-9]{2,15}$/),
     divisi_id: z.uuid(),
     tanggal_mulai: z.iso.date(),
     tanggal_selesai: z.iso.date(),

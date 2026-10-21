@@ -3,13 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import type { ApplicantStatus } from "@/lib/types";
+import { tanggalMinimumSelesai } from "@/lib/tanggal";
 
-type Action = "terima" | "tolak" | "batalkan" | "ubah_jadwal";
+type Action = "terima" | "tolak" | "batalkan" | "ubah_jadwal" | "ubah_divisi";
+type Division = { id: string; nama: string; aktif: boolean };
 
 type ActionResult = {
   error?: string;
   emailSent?: boolean | null;
   emailMessage?: string;
+  warning?: string;
 };
 
 export default function ApplicantActions({
@@ -17,17 +20,24 @@ export default function ApplicantActions({
   status,
   tanggalMulai,
   tanggalSelesai,
+  divisiId,
+  divisions,
+  divisionsUnavailable,
 }: {
   id: string;
   status: ApplicantStatus;
   tanggalMulai: string;
   tanggalSelesai: string;
+  divisiId: string | null;
+  divisions: Division[];
+  divisionsUnavailable: boolean;
 }) {
   const router = useRouter();
   const [action, setAction] = useState<Action | null>(null);
   const [catatan, setCatatan] = useState("");
   const [mulai, setMulai] = useState(tanggalMulai ?? "");
   const [selesai, setSelesai] = useState(tanggalSelesai ?? "");
+  const [selectedDivisiId, setSelectedDivisiId] = useState(divisiId ?? "");
   const [kirimEmail, setKirimEmail] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
@@ -36,6 +46,7 @@ export default function ApplicantActions({
     setCatatan("");
     setMulai(tanggalMulai ?? "");
     setSelesai(tanggalSelesai ?? "");
+    setSelectedDivisiId(divisiId ?? "");
     setKirimEmail(true);
     setNotice(null);
     setAction(nextAction);
@@ -51,11 +62,13 @@ export default function ApplicantActions({
       | { aksi: "terima"; kirimEmail: boolean }
       | { aksi: "tolak"; catatan: string; kirimEmail: boolean }
       | { aksi: "batalkan"; catatan: string; kirimEmail: boolean }
-      | { aksi: "ubah_jadwal"; tanggalMulai: string; tanggalSelesai: string; kirimEmail: boolean };
+      | { aksi: "ubah_jadwal"; tanggalMulai: string; tanggalSelesai: string; kirimEmail: boolean }
+      | { aksi: "ubah_divisi"; divisiId: string };
     if (action === "terima") body = { aksi: action, kirimEmail };
     else if (action === "tolak") body = { aksi: action, catatan: catatan ?? "", kirimEmail };
     else if (action === "batalkan") body = { aksi: action, catatan: catatan ?? "", kirimEmail };
-    else body = { aksi: action, tanggalMulai: mulai ?? "", tanggalSelesai: selesai ?? "", kirimEmail };
+    else if (action === "ubah_jadwal") body = { aksi: action, tanggalMulai: mulai ?? "", tanggalSelesai: selesai ?? "", kirimEmail };
+    else body = { aksi: action, divisiId: selectedDivisiId };
 
     try {
       const response = await fetch(`/api/pemagang/${id}/aksi`, {
@@ -69,7 +82,8 @@ export default function ApplicantActions({
         return;
       }
 
-      let text = "Perubahan berhasil disimpan.";
+      let text = action === "ubah_divisi" ? "Divisi penempatan berhasil disimpan." : "Perubahan berhasil disimpan.";
+      if (result.warning) text = result.warning;
       if (result.emailSent === true) {
         text = result.emailMessage
           ? `Perubahan tersimpan. ${result.emailMessage}`
@@ -94,14 +108,19 @@ export default function ApplicantActions({
     tolak: "Tolak pendaftaran",
     batalkan: "Batalkan pemagangan",
     ubah_jadwal: "Ubah jadwal magang",
+    ubah_divisi: "Atur divisi penempatan",
   };
+  const hasActiveDivision = divisions.some((division) => division.id === divisiId && division.aktif);
 
   return (
     <div className="applicant-actions">
       {status === "pending" && <>
-        <button className="button button-green" type="button" onClick={() => openAction("terima")}>Terima</button>
+        <button className="button button-green" type="button" disabled={!hasActiveDivision || divisionsUnavailable} onClick={() => openAction("terima")}>Terima</button>
         <button className="button button-dark" type="button" onClick={() => openAction("tolak")}>Tolak</button>
         <button className="button button-dark" type="button" onClick={() => openAction("ubah_jadwal")}>Ubah jadwal</button>
+        <button className="button button-dark" type="button" disabled={divisionsUnavailable || !divisions.some((division) => division.aktif)} onClick={() => openAction("ubah_divisi")}>Atur divisi</button>
+        {!hasActiveDivision && <p className="form-message">Tetapkan divisi aktif sebelum pendaftaran dapat diterima.</p>}
+        {divisionsUnavailable && <p className="form-message error" role="alert">Daftar divisi tidak dapat dimuat.</p>}
       </>}
       {status === "diterima" && <>
         <button className="button button-dark" type="button" onClick={() => openAction("ubah_jadwal")}>Ubah jadwal</button>
@@ -121,11 +140,12 @@ export default function ApplicantActions({
             {action === "ubah_jadwal" && <>
               <p>Jadwal saat ini: {tanggalMulai} s.d. {tanggalSelesai}</p>
               <div className="field"><label htmlFor="action-start">Tanggal mulai baru</label><input id="action-start" type="date" value={mulai ?? ""} required onChange={(event) => setMulai(event.target.value)} /></div>
-              <div className="field"><label htmlFor="action-end">Tanggal selesai baru</label><input id="action-end" type="date" value={selesai ?? ""} required onChange={(event) => setSelesai(event.target.value)} /></div>
+              <div className="field"><label htmlFor="action-end">Tanggal selesai baru</label><input id="action-end" type="date" value={selesai ?? ""} min={tanggalMinimumSelesai(mulai) ?? undefined} required onChange={(event) => setSelesai(event.target.value)} /><small>Durasi minimal 1 bulan dan maksimal 366 hari.</small></div>
               <p>Kapasitas divisi akan diperiksa ulang.</p>
               {status === "pending" && <p>Email tidak dikirim untuk perubahan jadwal pendaftar berstatus menunggu.</p>}
             </>}
-            <label className="action-email-option"><input type="checkbox" checked={Boolean(kirimEmail)} onChange={(event) => setKirimEmail(event.target.checked)} /> Kirim email pemberitahuan</label>
+            {action === "ubah_divisi" && <div className="field"><label htmlFor="action-division">Divisi penempatan</label><select id="action-division" required value={selectedDivisiId} onChange={(event) => setSelectedDivisiId(event.target.value)}><option value="" disabled>Pilih divisi</option>{divisions.map((division) => <option key={division.id} value={division.id} disabled={!division.aktif}>{division.nama}{division.aktif ? "" : " (tidak aktif)"}</option>)}</select><small>Kapasitas akan diperiksa saat pendaftaran diterima.</small></div>}
+            {action !== "ubah_divisi" && <label className="action-email-option"><input type="checkbox" checked={Boolean(kirimEmail)} onChange={(event) => setKirimEmail(event.target.checked)} /> Kirim email pemberitahuan</label>}
             <div className="action-dialog-buttons">
               <button className="button button-dark" type="button" disabled={busy} onClick={() => setAction(null)}>Kembali</button>
               <button className={action === "batalkan" ? "button button-danger" : "button button-green"} type="submit" disabled={busy}>{busy ? "Memproses…" : "Konfirmasi"}</button>

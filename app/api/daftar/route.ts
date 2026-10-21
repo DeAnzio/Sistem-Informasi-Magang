@@ -42,19 +42,10 @@ export async function POST(request: Request) {
       return Response.json({ error: "Berkas belum berhasil diunggah. Silakan ulangi pendaftaran." }, { status: 400 });
     }
 
-    const { data: remainingCapacity, error: capacityError } = await supabase.rpc("sisa_kuota_rentang", {
-      p_divisi: payload.applicant.divisi_id,
-      p_mulai: payload.applicant.tanggal_mulai,
-      p_selesai: payload.applicant.tanggal_selesai,
-    });
-    if (capacityError || remainingCapacity === null || remainingCapacity <= 0) {
-      await supabase.storage.from("berkas").remove(paths);
-      return Response.json({ error: capacityError ? "Kapasitas untuk tanggal tersebut belum dapat diperiksa." : "Kuota divisi telah penuh pada rentang tanggal yang dipilih." }, { status: capacityError ? 503 : 409 });
-    }
-
     const { error } = await supabase.from("applicants").insert({
       id: payload.applicantId,
       ...payload.applicant,
+      divisi_id: null,
       berkas_cv: payload.files.berkas_cv,
       berkas_surat_pengantar: payload.files.berkas_surat_pengantar,
       sumber: "online",

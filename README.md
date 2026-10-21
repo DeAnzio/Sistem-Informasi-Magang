@@ -18,6 +18,7 @@ Buka http://localhost:3000. Halaman publik dan area admin tersedia, tetapi fitur
 1. Buat proyek Supabase.
 2. Jalankan seluruh isi `supabase/schema.sql` di SQL Editor.
    Jika database sudah memakai model lama berbasis `periode`/`slots`, jalankan `supabase/migration_kapasitas_divisi.sql` sebagai gantinya (jangan jalankan skema baru di atas database lama).
+   Untuk database yang sudah berjalan, lanjutkan dengan `supabase/migration_penempatan_divisi_durasi.sql` agar divisi pendaftar online dapat ditentukan admin dan durasi minimum satu bulan diterapkan.
 3. Buat bucket Storage bernama `berkas`, set sebagai **private**, batas file 5 MB, MIME `application/pdf,image/jpeg,image/png`.
 4. Buat user admin melalui Authentication → Users, lalu masukkan UUID dan nama admin:
 
@@ -30,7 +31,7 @@ values ('UUID-USER-AUTH', 'Nama Admin');
 
 ## Keamanan formulir pendaftaran
 
-Formulir pendaftaran dilindungi reCAPTCHA v3. Daftarkan domain aplikasi di Google reCAPTCHA Admin Console, pilih reCAPTCHA v3, lalu atur `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` dan `RECAPTCHA_SECRET_KEY` pada `.env` atau `.env.local` (secret key hanya di server). Verifikasi dilakukan di server sebelum URL unggah diterbitkan; action harus `submit_registration`, hostname harus cocok, dan skor minimum adalah `0.5`. Formulir tidak tersedia bila kunci belum diatur. Validasi data, pemeriksaan kuota di server, pembatasan tipe dan ukuran berkas, serta URL unggah bertanda tangan tetap aktif.
+Formulir pendaftaran dilindungi reCAPTCHA. Daftarkan domain aplikasi di Google reCAPTCHA Admin Console, lalu atur `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` dan `RECAPTCHA_SECRET_KEY` pada `.env` atau `.env.local` (secret key hanya di server). Verifikasi dilakukan di server sebelum URL unggah diterbitkan. Formulir tidak tersedia bila kunci belum diatur. Validasi data termasuk durasi minimal satu bulan, pembatasan tipe dan ukuran berkas, serta URL unggah bertanda tangan tetap aktif; administrator menetapkan divisi peserta saat verifikasi.
 
 ## Konfigurasi email
 
@@ -44,7 +45,7 @@ Isi kredensial SMTP di `.env` atau `.env.local`. Hasil keputusan dikirim ke pend
 - `/survey` informasi survey kepuasan
 - `/kontak` kontak dan peta kantor
 - `/slot` informasi kapasitas aktif tiap divisi
-- `/daftar` formulir divisi dan tanggal magang dengan unggah berkas privat
+- `/daftar` formulir tanggal magang dengan unggah berkas privat; divisi ditetapkan administrator
 - `/admin/login` login admin
 - `/admin` dashboard ringkasan
 - `/admin/slot` ringkasan dan pengaturan kuota tiap divisi

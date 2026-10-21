@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { isDurasiMagangValid, tanggalMinimumSelesai } from "@/lib/tanggal";
 
 type Division = {
   id: string;
@@ -35,6 +36,9 @@ export default function ManualApplicantForm({ divisions }: { divisions: Division
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [tanggalMulai, setTanggalMulai] = useState("");
+  const [tanggalSelesai, setTanggalSelesai] = useState("");
+  const [dateError, setDateError] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,6 +49,13 @@ export default function ManualApplicantForm({ divisions }: { divisions: Division
     setError(false);
 
     try {
+      const start = String(data.get("tanggal_mulai") ?? "");
+      const end = String(data.get("tanggal_selesai") ?? "");
+      if (!isDurasiMagangValid(start, end)) {
+        setDateError("Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari.");
+        return;
+      }
+      setDateError("");
       const cv = selectedFile(data.get("berkas_cv"));
       const surat = selectedFile(data.get("berkas_surat_pengantar"));
       for (const file of [cv, surat]) {
@@ -61,8 +72,8 @@ export default function ManualApplicantForm({ divisions }: { divisions: Division
         jurusan: String(data.get("jurusan") ?? ""),
         nim: String(data.get("nim") ?? ""),
         divisi_id: String(data.get("divisi_id") ?? ""),
-        tanggal_mulai: String(data.get("tanggal_mulai") ?? ""),
-        tanggal_selesai: String(data.get("tanggal_selesai") ?? ""),
+        tanggal_mulai: start,
+        tanggal_selesai: end,
       };
       const prepareResponse = await fetch("/api/pemagang/manual", {
         method: "POST",
@@ -133,14 +144,26 @@ export default function ManualApplicantForm({ divisions }: { divisions: Division
       <div className="form-grid">
         <div className="field"><label htmlFor="nama">Nama lengkap</label><input id="nama" name="nama" autoComplete="name" maxLength={120} required /></div>
         <div className="field"><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" maxLength={254} required /></div>
-        <div className="field"><label htmlFor="no_hp">Nomor telepon</label><input id="no_hp" name="no_hp" type="tel" autoComplete="tel" maxLength={30} required /></div>
-        <div className="field"><label htmlFor="nim">NIM</label><input id="nim" name="nim" maxLength={50} required /></div>
+        <div className="field"><label htmlFor="no_hp">Nomor telepon</label><input id="no_hp" name="no_hp" type="tel" inputMode="numeric" autoComplete="tel" pattern="[0-9]{8,13}" title="Masukkan 8 sampai 13 digit angka." maxLength={13} required onChange={(event) => {
+          event.target.value = event.target.value.replace(/\D/g, "").slice(0, 13);
+        }} /></div>
+        <div className="field"><label htmlFor="nim">NIM</label><input id="nim" name="nim" type="text" inputMode="numeric" pattern="[0-9]{2,15}" title="NIM hanya boleh berisi 2 sampai 15 angka." maxLength={15} required onChange={(event) => {
+          event.target.value = event.target.value.replace(/\D/g, "").slice(0, 15);
+        }} /></div>
         <div className="field"><label htmlFor="asal_kampus">Asal perguruan tinggi</label><input id="asal_kampus" name="asal_kampus" maxLength={160} required /></div>
-        <div className="field"><label htmlFor="jurusan">Program studi</label><input id="jurusan" name="jurusan" maxLength={160} required /></div>
+        <div className="field"><label htmlFor="jurusan">Program studi</label><input id="jurusan" name="jurusan" maxLength={30} required /></div>
         <div className="field"><label htmlFor="divisi_id">Divisi</label><select id="divisi_id" name="divisi_id" required defaultValue=""><option value="" disabled>Pilih divisi</option>{divisions.map((division) => <option key={division.id} value={division.id}>{division.nama}</option>)}</select></div>
         <div className="field"><label htmlFor="statusAwal">Status awal</label><select id="statusAwal" name="statusAwal" defaultValue="diterima"><option value="diterima">Diterima</option><option value="pending">Menunggu verifikasi</option></select></div>
-        <div className="field"><label htmlFor="tanggal_mulai">Tanggal mulai magang</label><input id="tanggal_mulai" name="tanggal_mulai" type="date" required /><small>Tanggal mulai dapat berada di masa lalu.</small></div>
-        <div className="field"><label htmlFor="tanggal_selesai">Tanggal selesai magang</label><input id="tanggal_selesai" name="tanggal_selesai" type="date" required /><small>Harus setelah tanggal mulai; durasi maksimal 366 hari.</small></div>
+        <div className="field"><label htmlFor="tanggal_mulai">Tanggal mulai magang</label><input id="tanggal_mulai" name="tanggal_mulai" type="date" value={tanggalMulai} required onChange={(event) => {
+          const nextValue = event.target.value;
+          setTanggalMulai(nextValue);
+          setDateError(tanggalSelesai && !isDurasiMagangValid(nextValue, tanggalSelesai) ? "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." : "");
+        }} /><small>Tanggal mulai dapat berada di masa lalu.</small></div>
+        <div className="field"><label htmlFor="tanggal_selesai">Tanggal selesai magang</label><input id="tanggal_selesai" name="tanggal_selesai" type="date" value={tanggalSelesai} min={tanggalMinimumSelesai(tanggalMulai) ?? undefined} required onChange={(event) => {
+          const nextValue = event.target.value;
+          setTanggalSelesai(nextValue);
+          setDateError(tanggalMulai && !isDurasiMagangValid(tanggalMulai, nextValue) ? "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." : "");
+        }} /><small>Durasi minimal 1 bulan dan maksimal 366 hari.</small>{dateError && <small role="alert">{dateError}</small>}</div>
         <div className="field"><label htmlFor="berkas_cv">Curriculum vitae (opsional)</label><input id="berkas_cv" name="berkas_cv" type="file" accept="application/pdf,image/jpeg,image/png" /><small>PDF, JPG, PNG · maksimal 5 MB</small></div>
         <div className="field"><label htmlFor="berkas_surat_pengantar">Surat pengantar (opsional)</label><input id="berkas_surat_pengantar" name="berkas_surat_pengantar" type="file" accept="application/pdf,image/jpeg,image/png" /><small>PDF, JPG, PNG · maksimal 5 MB</small></div>
         <div className="field field-wide">

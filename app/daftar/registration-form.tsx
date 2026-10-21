@@ -4,8 +4,7 @@ import Link from "next/link";
 import Script from "next/script";
 import { useRef, useState, type FormEvent } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-
-type Division = { id: string; nama: string };
+import { isDurasiMagangValid, tanggalMinimumSelesai } from "@/lib/tanggal";
 
 declare global {
   interface Window {
@@ -24,11 +23,14 @@ declare global {
   }
 }
 
-export default function RegistrationForm({ divisions, initialDivisionId, recaptchaSiteKey }: { divisions: Division[]; initialDivisionId: string; recaptchaSiteKey: string }) {
+export default function RegistrationForm({ recaptchaSiteKey }: { recaptchaSiteKey: string }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState("");
+  const [tanggalMulai, setTanggalMulai] = useState("");
+  const [tanggalSelesai, setTanggalSelesai] = useState("");
+  const [dateError, setDateError] = useState("");
   const recaptchaContainer = useRef<HTMLDivElement>(null);
   const recaptchaWidgetId = useRef<number | null>(null);
 
@@ -78,14 +80,15 @@ export default function RegistrationForm({ divisions, initialDivisionId, recaptc
     setError(false);
 
     const data = new FormData(form);
+    const tanggalMulai = String(data.get("tanggal_mulai"));
+    const tanggalSelesai = String(data.get("tanggal_selesai"));
+    if (!isDurasiMagangValid(tanggalMulai, tanggalSelesai)) {
+      setDateError("Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari.");
+      return;
+    }
+    setDateError("");
     setSubmitting(true);
     try {
-      const tanggalMulai = String(data.get("tanggal_mulai"));
-      const tanggalSelesai = String(data.get("tanggal_selesai"));
-      const durationDays = (Date.parse(`${tanggalSelesai}T00:00:00Z`) - Date.parse(`${tanggalMulai}T00:00:00Z`)) / 86_400_000;
-      if (durationDays <= 0 || durationDays > 366) {
-        throw new Error("Tanggal selesai harus setelah tanggal mulai dan durasi maksimal 366 hari.");
-      }
       const cv = data.get("berkas_cv");
       const surat = data.get("berkas_surat_pengantar");
       if (!(cv instanceof File) || !(surat instanceof File)) throw new Error("CV dan surat pengantar wajib diunggah.");
@@ -96,7 +99,6 @@ export default function RegistrationForm({ divisions, initialDivisionId, recaptc
         body: JSON.stringify({
           nama: data.get("nama"), email: data.get("email"), no_hp: data.get("no_hp"),
           asal_kampus: data.get("asal_kampus"), jurusan: data.get("jurusan"), nim: data.get("nim"),
-          divisi_id: data.get("divisi_id"),
           tanggal_mulai: tanggalMulai,
           tanggal_selesai: tanggalSelesai,
           recaptchaToken,
@@ -122,6 +124,9 @@ export default function RegistrationForm({ divisions, initialDivisionId, recaptc
       if (!response.ok) throw new Error(result.error ?? "Pendaftaran belum berhasil diproses.");
       setMessage("Pendaftaran berhasil dikirim. Simpan informasi ini: " + result.id);
       form.reset();
+      setTanggalMulai("");
+      setTanggalSelesai("");
+      setDateError("");
       resetRecaptcha();
     } catch (submitError) {
       setMessage(submitError instanceof Error ? submitError.message : "Terjadi kesalahan. Silakan coba kembali.");
@@ -140,15 +145,26 @@ export default function RegistrationForm({ divisions, initialDivisionId, recaptc
       }} />
       <form onSubmit={handleSubmit}>
         <div className="form-grid">
-          <div className="field field-wide"><label htmlFor="divisi_id">Divisi yang dituju</label><select id="divisi_id" name="divisi_id" defaultValue={initialDivisionId} required><option value="" disabled>Pilih divisi</option>{divisions.map((division) => <option value={division.id} key={division.id}>{division.nama}</option>)}</select></div>
-          <div className="field"><label htmlFor="tanggal_mulai">Tanggal mulai magang</label><input id="tanggal_mulai" name="tanggal_mulai" type="date" required /></div>
-          <div className="field"><label htmlFor="tanggal_selesai">Tanggal selesai magang</label><input id="tanggal_selesai" name="tanggal_selesai" type="date" required /><small>Durasi maksimal 366 hari.</small></div>
+          <div className="field"><label htmlFor="tanggal_mulai">Tanggal mulai magang</label><input id="tanggal_mulai" name="tanggal_mulai" type="date" value={tanggalMulai} required onChange={(event) => {
+            const nextValue = event.target.value;
+            setTanggalMulai(nextValue);
+            setDateError(tanggalSelesai && !isDurasiMagangValid(nextValue, tanggalSelesai) ? "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." : "");
+          }} /></div>
+          <div className="field"><label htmlFor="tanggal_selesai">Tanggal selesai magang</label><input id="tanggal_selesai" name="tanggal_selesai" type="date" value={tanggalSelesai} min={tanggalMinimumSelesai(tanggalMulai) ?? undefined} required onChange={(event) => {
+            const nextValue = event.target.value;
+            setTanggalSelesai(nextValue);
+            setDateError(tanggalMulai && !isDurasiMagangValid(tanggalMulai, nextValue) ? "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." : "");
+          }} /><small>Durasi minimal 1 bulan dan maksimal 366 hari.</small>{dateError && <small role="alert">{dateError}</small>}</div>
           <div className="field"><label htmlFor="nama">Nama lengkap</label><input id="nama" name="nama" autoComplete="name" maxLength={120} required /></div>
           <div className="field"><label htmlFor="email">Email aktif</label><input id="email" name="email" type="email" autoComplete="email" maxLength={254} required /></div>
-          <div className="field"><label htmlFor="no_hp">Nomor telepon</label><input id="no_hp" name="no_hp" type="tel" autoComplete="tel" maxLength={30} required /></div>
-          <div className="field"><label htmlFor="nim">NIM</label><input id="nim" name="nim" maxLength={50} required /></div>
+          <div className="field"><label htmlFor="no_hp">Nomor telepon</label><input id="no_hp" name="no_hp" type="tel" inputMode="numeric" autoComplete="tel" pattern="[0-9]{8,13}" title="Masukkan 8 sampai 13 digit angka." maxLength={13} required onChange={(event) => {
+            event.target.value = event.target.value.replace(/\D/g, "").slice(0, 13);
+          }} /></div>
+          <div className="field"><label htmlFor="nim">NIM</label><input id="nim" name="nim" type="text" inputMode="numeric" pattern="[0-9]{2,15}" title="NIM hanya boleh berisi 2 sampai 15 angka." maxLength={15} required onChange={(event) => {
+            event.target.value = event.target.value.replace(/\D/g, "").slice(0, 15);
+          }} /></div>
           <div className="field"><label htmlFor="asal_kampus">Asal perguruan tinggi</label><input id="asal_kampus" name="asal_kampus" maxLength={160} required /></div>
-          <div className="field"><label htmlFor="jurusan">Program studi</label><input id="jurusan" name="jurusan" maxLength={160} required /></div>
+          <div className="field"><label htmlFor="jurusan">Program studi</label><input id="jurusan" name="jurusan" maxLength={30} required /></div>
           <div className="field"><label htmlFor="berkas_cv">Curriculum vitae</label><input id="berkas_cv" name="berkas_cv" type="file" accept="application/pdf,image/jpeg,image/png" required /><small>PDF, JPG, PNG · maksimal 5 MB</small></div>
           <div className="field"><label htmlFor="berkas_surat_pengantar">Surat pengantar</label><input id="berkas_surat_pengantar" name="berkas_surat_pengantar" type="file" accept="application/pdf,image/jpeg,image/png" required /><small>PDF, JPG, PNG · maksimal 5 MB</small></div>
         </div>
@@ -157,7 +173,7 @@ export default function RegistrationForm({ divisions, initialDivisionId, recaptc
         <div className="field field-wide"><button className="button button-green" type="submit" disabled={submitting}>{submitting ? "Mengirim pendaftaran…" : "Kirim pendaftaran"} <span aria-hidden="true">→</span></button></div>
         {message && <p className={`form-message${error ? " error" : ""}`} role="status">{message}</p>}
       </form>
-      <aside className="form-aside"><h2>Sebelum mengirim</h2><p>Pastikan informasi yang diberikan sesuai dokumen resmi agar proses verifikasi berjalan lancar.</p><ul><li>Gunakan alamat email yang aktif.</li><li>Unggah berkas dalam format PDF, JPG, atau PNG.</li><li>Durasi magang maksimal 366 hari.</li><li>Ketersediaan kuota dihitung dari tanggal yang Anda ajukan.</li></ul><Link className="text-link" href="/slot">Lihat informasi kuota ↗</Link></aside>
+      <aside className="form-aside"><h2>Sebelum mengirim</h2><p>Pastikan informasi yang diberikan sesuai dokumen resmi agar proses verifikasi berjalan lancar.</p><ul><li>Gunakan alamat email yang aktif.</li><li>Unggah berkas dalam format PDF, JPG, atau PNG.</li><li>Penempatan divisi ditentukan oleh administrator.</li></ul><Link className="text-link" href="/slot">Lihat informasi kuota ↗</Link></aside>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { getAuthenticatedAdminId } from "@/lib/supabase/authorize-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createManualApplicantTicket, verifyManualApplicantTicket } from "@/lib/manual-applicant-ticket";
 import { sendApplicantEmail } from "@/lib/email";
+import { isDurasiMagangValid } from "@/lib/tanggal";
 
 export const runtime = "nodejs";
 
@@ -20,17 +21,16 @@ const fileMetadataSchema = z.object({
 const applicantDataSchema = z.object({
   nama: z.string().trim().min(2).max(120),
   email: z.email().max(254),
-  no_hp: z.string().trim().min(8).max(30),
+  no_hp: z.string().regex(/^[0-9]{8,13}$/, "Nomor HP harus berisi 8 sampai 13 digit angka."),
   asal_kampus: z.string().trim().min(2).max(160),
-  jurusan: z.string().trim().min(2).max(160),
-  nim: z.string().trim().min(2).max(50),
+  jurusan: z.string().trim().min(2).max(30),
+  nim: z.string().regex(/^[0-9]{2,15}$/, "NIM harus berisi 2 sampai 15 digit angka."),
   divisi_id: z.uuid(),
   tanggal_mulai: z.iso.date(),
   tanggal_selesai: z.iso.date(),
 }).refine(({ tanggal_mulai, tanggal_selesai }) => {
-  const duration = (Date.parse(`${tanggal_selesai}T00:00:00Z`) - Date.parse(`${tanggal_mulai}T00:00:00Z`)) / 86_400_000;
-  return duration > 0 && duration <= 366;
-}, { path: ["tanggal_selesai"], message: "Tanggal selesai harus setelah tanggal mulai dan durasi maksimal 366 hari." });
+  return isDurasiMagangValid(tanggal_mulai, tanggal_selesai);
+}, { path: ["tanggal_selesai"], message: "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." });
 
 const requestSchema = z.discriminatedUnion("tahap", [
   z.object({

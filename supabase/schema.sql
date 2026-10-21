@@ -30,7 +30,7 @@ create table public.applicants (
   asal_kampus text not null,
   jurusan text not null,
   nim text not null,
-  divisi_id uuid not null references public.divisi(id),
+  divisi_id uuid references public.divisi(id),
   tanggal_mulai date not null,
   tanggal_selesai date not null,
   berkas_cv text,
@@ -41,7 +41,7 @@ create table public.applicants (
   verified_by uuid references public.admins(user_id),
   verified_at timestamptz,
   created_at timestamptz not null default now(),
-  check (tanggal_selesai > tanggal_mulai),
+  check (tanggal_selesai >= (tanggal_mulai + interval '1 month')::date),
   check (tanggal_selesai - tanggal_mulai <= 366),
   unique (nim, divisi_id, tanggal_mulai)
 );
@@ -121,15 +121,19 @@ $$;
 
 create or replace function public.terima_pendaftar(p_id uuid, p_admin uuid)
 returns text language plpgsql security definer set search_path = public as $$
-declare v_divisi uuid; v_mulai date; v_selesai date;
+declare v_divisi uuid; v_mulai date; v_selesai date; v_sisa int;
 begin
   select divisi_id, tanggal_mulai, tanggal_selesai
     into v_divisi, v_mulai, v_selesai
     from public.applicants where id = p_id and status = 'pending' for update;
-  if v_divisi is null then return 'sudah_diproses'; end if;
+  if not found then return 'sudah_diproses'; end if;
+  if v_divisi is null then return 'divisi_belum_dipilih'; end if;
+  if v_selesai < (v_mulai + interval '1 month')::date then return 'tanggal_tidak_valid'; end if;
 
   perform 1 from public.divisi where id = v_divisi for update;
-  if public.sisa_kuota_rentang(v_divisi, v_mulai, v_selesai) <= 0 then
+  v_sisa := public.sisa_kuota_rentang(v_divisi, v_mulai, v_selesai);
+  if v_sisa is null then return 'divisi_tidak_tersedia'; end if;
+  if v_sisa <= 0 then
     return 'kuota_penuh';
   end if;
 

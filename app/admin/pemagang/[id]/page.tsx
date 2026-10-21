@@ -75,6 +75,7 @@ function activityDescription(action: string, rawDetail: unknown): string {
   const descriptions: Record<string, string> = {
     input_manual: "Data pemagang dicatat secara manual.",
     terima: "Pendaftaran diterima.",
+    ubah_divisi: "Divisi penempatan diperbarui.",
   };
   return descriptions[action] ?? "Aktivitas tercatat.";
 }
@@ -110,6 +111,19 @@ export default async function DetailPemagangPage({
     status: statusResult.data,
     divisi: firstRelation<{ nama: string }>(data.divisi),
   };
+  const { data: activeDivisions, error: divisionsError } = await supabase
+    .from("divisi")
+    .select("id, nama")
+    .eq("aktif", true)
+    .order("urutan");
+  const actionDivisions = (activeDivisions ?? []).map((division) => ({ ...division, aktif: true }));
+  if (applicant.divisi_id && !actionDivisions.some((division) => division.id === applicant.divisi_id)) {
+    actionDivisions.unshift({
+      id: applicant.divisi_id,
+      nama: applicant.divisi?.nama ?? "Divisi tidak aktif",
+      aktif: false,
+    });
+  }
   const phase = fasePemagang(applicant.status, applicant.tanggal_mulai, applicant.tanggal_selesai);
   const noticeType = z.enum(["kuota_penuh", "riwayat_gagal", "terima_gagal", "email_gagal", "email_log_gagal"])
     .safeParse(Array.isArray(query.hasil) ? query.hasil[0] : query.hasil);
@@ -174,7 +188,7 @@ export default async function DetailPemagangPage({
         </dl></section>
 
         <section className="admin-detail-section"><h2>Penempatan</h2><dl className="detail-grid">
-          <div><dt>Divisi</dt><dd>{applicant.divisi?.nama ?? "—"}</dd></div>
+          <div><dt>Divisi</dt><dd>{applicant.divisi?.nama ?? "Belum ditetapkan"}</dd></div>
           <div><dt>Tanggal mulai</dt><dd>{formatDate(applicant.tanggal_mulai)}</dd></div>
           <div><dt>Tanggal selesai</dt><dd>{formatDate(applicant.tanggal_selesai)}</dd></div>
           <div><dt>Durasi</dt><dd>{dateDuration(applicant.tanggal_mulai, applicant.tanggal_selesai)} hari</dd></div>
@@ -187,7 +201,7 @@ export default async function DetailPemagangPage({
           {([["cv", "CV", applicant.berkas_cv], ["surat", "Surat pengantar", applicant.berkas_surat_pengantar]] as const).map(([type, label, file]) => <div className="document-action" key={type}><strong>{label}</strong>{file ? <div><a className="text-link" href={`/api/berkas/${id}/${type}`} target="_blank" rel="noreferrer">Lihat ↗</a><a className="text-link" href={`/api/berkas/${id}/${type}?aksi=unduh`}>Unduh ↓</a></div> : <span>Belum ada berkas</span>}</div>)}
         </div></section>
 
-        <section className="admin-detail-section"><h2>Aksi</h2>{applicant.status === "ditolak" || applicant.status === "dibatalkan" ? <p className="form-message">Status final. Tidak ada aksi lanjutan.</p> : <ApplicantActions id={id} status={applicant.status} tanggalMulai={applicant.tanggal_mulai} tanggalSelesai={applicant.tanggal_selesai} />}</section>
+        <section className="admin-detail-section"><h2>Aksi</h2>{applicant.status === "ditolak" || applicant.status === "dibatalkan" ? <p className="form-message">Status final. Tidak ada aksi lanjutan.</p> : <ApplicantActions id={id} status={applicant.status} tanggalMulai={applicant.tanggal_mulai} tanggalSelesai={applicant.tanggal_selesai} divisiId={applicant.divisi_id} divisions={actionDivisions} divisionsUnavailable={Boolean(divisionsError)} />}</section>
 
         <section className="admin-detail-section"><h2>Riwayat aktivitas</h2>{activitiesError ? <p className="form-message error" role="alert">Riwayat aktivitas tidak dapat dimuat. Pastikan migrasi database Tugas B1 telah dijalankan.</p> : activities.length === 0 ? <p className="form-message">Belum ada riwayat aktivitas.</p> : <ol className="activity-list">{activities.map((activity) => <li key={activity.id}><strong>{activity.aksi.replaceAll("_", " ")}</strong><p>{activityDescription(activity.aksi, activity.detail)}</p><small>{(activity.oleh && adminNames.get(activity.oleh)) || "Admin"} · {formatTimestamp(activity.waktu)}</small></li>)}</ol>}{adminNamesUnavailable && <p className="form-message error" role="alert">Nama admin pada riwayat belum dapat dimuat.</p>}</section>
 

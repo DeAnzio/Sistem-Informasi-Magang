@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getAuthenticatedAdminId } from "@/lib/supabase/authorize-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendApplicantEmail, type ApplicantEmailType } from "@/lib/email";
+import { isDurasiMagangValid } from "@/lib/tanggal";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,10 @@ const actionSchema = z.discriminatedUnion("aksi", [
   z.object({
     aksi: z.literal("terima"),
     kirimEmail: z.boolean().default(true),
+  }).strict(),
+  z.object({
+    aksi: z.literal("ubah_divisi"),
+    divisiId: z.uuid(),
   }).strict(),
   z.object({
     aksi: z.literal("tolak"),
@@ -26,9 +31,8 @@ const actionSchema = z.discriminatedUnion("aksi", [
     tanggalSelesai: z.iso.date(),
     kirimEmail: z.boolean().default(true),
   }).strict().refine(({ tanggalMulai, tanggalSelesai }) => {
-    const duration = (Date.parse(`${tanggalSelesai}T00:00:00Z`) - Date.parse(`${tanggalMulai}T00:00:00Z`)) / 86_400_000;
-    return duration > 0 && duration <= 366;
-  }, { path: ["tanggalSelesai"], message: "Tanggal selesai harus setelah tanggal mulai dan durasi maksimal 366 hari." }),
+    return isDurasiMagangValid(tanggalMulai, tanggalSelesai);
+  }, { path: ["tanggalSelesai"], message: "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." }),
 ]);
 
 const rpcErrors: Record<string, { status: number; message: string }> = {
@@ -37,6 +41,8 @@ const rpcErrors: Record<string, { status: number; message: string }> = {
   status_tidak_valid: { status: 409, message: "Aksi tidak tersedia untuk status ini." },
   jadwal_duplikat: { status: 409, message: "Pemagang ini sudah memiliki jadwal dengan tanggal mulai yang sama." },
   tanggal_tidak_valid: { status: 422, message: "Rentang tanggal tidak valid." },
+  divisi_belum_dipilih: { status: 422, message: "Pilih divisi peserta sebelum menerima pendaftaran." },
+  divisi_tidak_tersedia: { status: 409, message: "Divisi tidak tersedia untuk penempatan." },
   tidak_ditemukan: { status: 404, message: "Data pemagang tidak ditemukan." },
 };
 
@@ -66,7 +72,7 @@ export async function POST(
     const supabase = createSupabaseAdminClient();
     const { data: current, error: currentError } = await supabase
       .from("applicants")
-      .select("status, tanggal_mulai, tanggal_selesai")
+      .select("status, tanggal_mulai, tanggal_selesai, divisi_id")
       .eq("id", id)
       .maybeSingle();
     if (currentError) {
@@ -74,6 +80,51 @@ export async function POST(
       return Response.json({ error: "Status pemagang belum dapat diperiksa." }, { status: 503 });
     }
     if (!current) return Response.json({ error: "Data pemagang tidak ditemukan." }, { status: 404 });
+
+    if (parsed.data.aksi === "ubah_divisi") {
+      if (current.status !== "pending") {
+        return Response.json({ error: "Divisi hanya dapat diubah selama pendaftaran masih menunggu verifikasi." }, { status: 409 });
+      }
+      const { data: division, error: divisionError } = await supabase
+        .from("divisi")
+        .select("id")
+        .eq("id", parsed.data.divisiId)
+        .eq("aktif", true)
+        .maybeSingle();
+      if (divisionError) {
+        console.error("Gagal memeriksa divisi untuk penempatan pemagang.", { message: divisionError.message });
+        return Response.json({ error: "Divisi belum dapat diperiksa." }, { status: 503 });
+      }
+      if (!division) return Response.json({ error: "Divisi tidak ditemukan atau tidak aktif." }, { status: 404 });
+
+      const { data: updatedApplicant, error: updateError } = await supabase
+        .from("applicants")
+        .update({ divisi_id: division.id })
+        .eq("id", id)
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle();
+      if (updateError) {
+        if (updateError.code === "23505") {
+          return Response.json({ error: "Peserta dengan NIM dan tanggal mulai tersebut sudah tercatat di divisi ini." }, { status: 409 });
+        }
+        console.error("Gagal menyimpan divisi penempatan pemagang.", { message: updateError.message });
+        return Response.json({ error: "Divisi penempatan belum dapat disimpan." }, { status: 500 });
+      }
+      if (!updatedApplicant) {
+        return Response.json({ error: "Status pendaftaran berubah. Muat ulang data peserta lalu coba kembali." }, { status: 409 });
+      }
+      const { error: activityError } = await supabase.from("aktivitas_pendaftar").insert({
+        applicant_id: id,
+        aksi: "ubah_divisi",
+        oleh: adminId,
+      });
+      if (activityError) {
+        console.error("Divisi penempatan tersimpan tetapi riwayat aktivitas gagal dicatat.", { message: activityError.message });
+        return Response.json({ result: "ok", warning: "Divisi tersimpan, tetapi riwayat aktivitas belum tercatat." });
+      }
+      return Response.json({ result: "ok" });
+    }
 
     let result: string | null;
     switch (parsed.data.aksi) {

@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { isDurasiMagangValid } from "@/lib/tanggal";
 
 const ticketPayloadSchema = z.object({
   applicantId: z.uuid(),
@@ -7,14 +8,13 @@ const ticketPayloadSchema = z.object({
   applicant: z.object({
     nama: z.string(),
     email: z.email(),
-    no_hp: z.string(),
+    no_hp: z.string().regex(/^[0-9]{8,13}$/),
     asal_kampus: z.string(),
-    jurusan: z.string(),
-    nim: z.string(),
-    divisi_id: z.uuid(),
+    jurusan: z.string().min(2).max(30),
+    nim: z.string().regex(/^[0-9]{2,15}$/),
     tanggal_mulai: z.iso.date(),
     tanggal_selesai: z.iso.date(),
-  }),
+  }).refine(({ tanggal_mulai, tanggal_selesai }) => isDurasiMagangValid(tanggal_mulai, tanggal_selesai)),
   files: z.object({
     berkas_cv: z.string(),
     berkas_surat_pengantar: z.string(),

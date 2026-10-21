@@ -27,7 +27,6 @@ export default function Home() {
             <li>Berstatus sebagai siswa atau mahasiswa aktif selama masa magang.</li>
             <li>Mengikuti program sekurang-kurangnya 1 bulan dan paling lama 12 bulan.</li>
             <li>Memperoleh penempatan sesuai formasi dan ketersediaan kuota.</li>
-            <li>Bersedia menaati ketentuan dan menandatangani <Link href="#documents-title">Pakta Integritas</Link>.</li>
           </ol>
         </section>
 
@@ -44,7 +43,6 @@ export default function Home() {
               </ul>
             </li>
             <li>Daftar riwayat hidup dan dokumen pendukung dari peserta.</li>
-            <li>Pakta Integritas yang telah ditandatangani sesuai arahan petugas.</li>
           </ol>
         </section>
 
