@@ -14,21 +14,18 @@ export default function LoginForm() {
     setMessage("");
     setSubmitting(true);
     const form = new FormData(event.currentTarget);
-    let supabase;
     try {
-      supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: String(form.get("email")).trim(), password: String(form.get("password")),
+      });
+      if (error) setMessage("Email atau kata sandi tidak valid.");
+      else { router.push("/admin"); router.refresh(); }
     } catch {
-      setMessage("Layanan login belum dikonfigurasi.");
+      setMessage("Layanan login tidak dapat dijangkau. Silakan coba kembali.");
+    } finally {
       setSubmitting(false);
-      return;
     }
-    const { error } = await supabase.auth.signInWithPassword({
-      email: String(form.get("email")),
-      password: String(form.get("password")),
-    });
-    if (error) setMessage("Email atau kata sandi tidak valid.");
-    else router.push("/admin");
-    setSubmitting(false);
   }
 
   return (

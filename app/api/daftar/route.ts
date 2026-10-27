@@ -1,63 +1,34 @@
+import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { verifyRegistrationTicket } from "@/lib/registration-ticket";
+import { cleanupUpload } from "@/lib/upload-session";
+import { hasValidOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
+const requestSchema = z.object({ ticket: z.string().min(1).max(8192), cleanup: z.boolean().default(false) }).strict();
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && new URL(origin).host !== new URL(request.url).host) return Response.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
-  const body = await request.json().catch(() => null) as { ticket?: unknown; cleanup?: unknown } | null;
-  if (!body || typeof body.ticket !== "string") return Response.json({ error: "Tiket pendaftaran tidak valid." }, { status: 400 });
-
-  let payload;
+  if (!hasValidOrigin(request)) return Response.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
+  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return Response.json({ error: "Tiket pendaftaran tidak valid." }, { status: 400 });
   try {
-    payload = verifyRegistrationTicket(body.ticket);
-  } catch {
-    return Response.json({ error: "Layanan pendaftaran belum dikonfigurasi." }, { status: 503 });
-  }
-  if (!payload) return Response.json({ error: "Tiket tidak valid atau telah kedaluwarsa. Silakan mulai pendaftaran kembali." }, { status: 400 });
-
-  try {
+    const payload = verifyRegistrationTicket(parsed.data.ticket);
+    if (!payload) return Response.json({ error: "Tiket tidak valid atau kedaluwarsa. Silakan mulai kembali." }, { status: 400 });
     const supabase = createSupabaseAdminClient();
-    const paths = Object.values(payload.files);
-    if (body.cleanup === true) {
-      await supabase.storage.from("berkas").remove(paths);
-      return Response.json({ cleaned: true });
+    if (parsed.data.cleanup) {
+      const cleaned = await cleanupUpload(supabase, payload.applicantId, Object.values(payload.files));
+      return Response.json(cleaned ? { cleaned: true } : { error: "Berkas pendaftaran yang sudah disimpan tidak dapat dibersihkan." }, { status: cleaned ? 200 : 409 });
     }
-
-    const { data: existingApplicant } = await supabase.from("applicants").select("id").eq("id", payload.applicantId).maybeSingle();
-    if (existingApplicant) return Response.json({ id: payload.applicantId }, { status: 200 });
-
-    const { data: storedFiles, error: storageError } = await supabase.storage.from("berkas").list(payload.applicantId);
-    const storedByName = new Map((storedFiles ?? []).map((file) => [file.name, file]));
-    const filesValid = paths.every((path) => {
-      const file = storedByName.get(path.split("/").at(-1)!);
-      const extension = path.split(".").at(-1);
-      const expectedType = extension === "pdf" ? "application/pdf" : extension === "jpg" ? "image/jpeg" : "image/png";
-      const size = Number(file?.metadata?.size);
-      return Boolean(file && size > 0 && size <= 5 * 1024 * 1024 && file.metadata?.mimetype === expectedType);
-    });
-    if (storageError || !filesValid) {
-      await supabase.storage.from("berkas").remove(paths);
-      return Response.json({ error: "Berkas belum berhasil diunggah. Silakan ulangi pendaftaran." }, { status: 400 });
-    }
-
-    const { error } = await supabase.from("applicants").insert({
-      id: payload.applicantId,
-      ...payload.applicant,
-      divisi_id: null,
-      berkas_cv: payload.files.berkas_cv,
-      berkas_surat_pengantar: payload.files.berkas_surat_pengantar,
-      sumber: "online",
-    });
+    const { data, error } = await supabase.rpc("simpan_pendaftaran", { p_id: payload.applicantId });
     if (error) {
-      const { data: insertedApplicant } = await supabase.from("applicants").select("id").eq("id", payload.applicantId).maybeSingle();
-      if (insertedApplicant) return Response.json({ id: payload.applicantId }, { status: 200 });
-      await supabase.storage.from("berkas").remove(paths);
-      if (error.code === "23505") return Response.json({ error: "NIM ini sudah terdaftar pada divisi dan tanggal mulai tersebut." }, { status: 409 });
-      return Response.json({ error: "Pendaftaran belum dapat disimpan. Silakan coba kembali." }, { status: 500 });
+      console.error("Finalisasi pendaftaran gagal.", { code: error.code });
+      return Response.json({ error: "Pendaftaran belum dapat disimpan. Coba kirim kembali." }, { status: 503 });
     }
-    return Response.json({ id: payload.applicantId }, { status: 201 });
+    const result = z.object({ id: z.uuid(), alreadySaved: z.boolean() }).safeParse(data);
+    if (result.success) return Response.json({ id: result.data.id }, { status: result.data.alreadySaved ? 200 : 201 });
+    const failure = z.object({ error: z.string() }).safeParse(data);
+    const duplicate = failure.success && failure.data.error === "pendaftaran_duplikat";
+    return Response.json({ error: duplicate ? "NIM ini sudah terdaftar pada tanggal mulai dan penempatan tersebut." : "Tiket atau unggahan tidak valid. Periksa berkas dan coba kembali." }, { status: duplicate ? 409 : 400 });
   } catch {
     return Response.json({ error: "Layanan pendaftaran belum tersedia." }, { status: 503 });
   }

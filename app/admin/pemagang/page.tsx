@@ -1,9 +1,10 @@
+import AdminLayout from "@/components/admin-layout";
 import Link from "next/link";
 import { z } from "zod";
-import { fasePemagang, hariIniWIB } from "@/lib/tanggal";
+import { fasePemagang } from "@/lib/tanggal";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { firstRelation } from "@/lib/normalize-relation";
-import { escapeApplicantSearchTerm } from "@/lib/pemagang-filters";
+import { buildApplicantQuery, type ApplicantFilters } from "@/lib/pemagang-filters";
 import type { ApplicantStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -34,47 +35,6 @@ function firstParam(value: string | string[] | undefined): string {
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "UTC" })
     .format(new Date(`${value}T00:00:00Z`));
-}
-
-function buildApplicantQuery(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  filters: {
-    q: string;
-    status: string;
-    phase: string;
-    divisionId: string;
-    fromDate: string;
-    throughDate: string;
-    sort: "terbaru" | "tanggal_mulai" | "nama";
-  },
-  head = false,
-) {
-  let query = supabase
-    .from("applicants")
-    .select("id, nama, nim, asal_kampus, tanggal_mulai, tanggal_selesai, status, divisi:divisi(nama)", { count: "exact", head });
-
-  if (filters.q) {
-    const safeQuery = escapeApplicantSearchTerm(filters.q);
-    query = query.or(`nama.ilike.%${safeQuery}%,nim.ilike.%${safeQuery}%,asal_kampus.ilike.%${safeQuery}%`);
-  }
-  if (filters.phase) {
-    const today = hariIniWIB();
-    query = query.eq("status", "diterima");
-    if (filters.phase === "akan_datang") query = query.gt("tanggal_mulai", today);
-    if (filters.phase === "aktif") query = query.lte("tanggal_mulai", today).gte("tanggal_selesai", today);
-    if (filters.phase === "selesai") query = query.lt("tanggal_selesai", today);
-  } else if (filters.status) {
-    query = query.eq("status", filters.status);
-  }
-  if (filters.divisionId) query = query.eq("divisi_id", filters.divisionId);
-  if (filters.throughDate) query = query.lte("tanggal_mulai", filters.throughDate);
-  if (filters.fromDate) query = query.gte("tanggal_selesai", filters.fromDate);
-
-  if (filters.sort === "tanggal_mulai") query = query.order("tanggal_mulai", { ascending: true }).order("created_at", { ascending: false });
-  else if (filters.sort === "nama") query = query.order("nama", { ascending: true });
-  else query = query.order("created_at", { ascending: false });
-
-  return query;
 }
 
 export default async function PemagangPage({
@@ -136,7 +96,7 @@ export default async function PemagangPage({
     invalidDivision = Boolean(divisionId && !divisions.some((division) => division.id === divisionId));
 
     if (!invalidFilter && !invalidDivision && !unavailable) {
-      const filters = {
+      const filters: ApplicantFilters = {
         q,
         status: phase ? "diterima" : status,
         phase,
@@ -192,10 +152,7 @@ export default async function PemagangPage({
   };
 
   return (
-    <main className="admin-shell">
-      <div className="utility-bar"><div className="shell utility-inner"><span>RUANG ADMINISTRATOR</span><Link href="/admin">Kembali ke dashboard <span aria-hidden="true">↗</span></Link></div></div>
-      <header className="site-header shell"><Link className="brand" href="/admin"><span className="brand-mark" aria-hidden="true">BPN</span><span><strong>BADAN PERTANAHAN NASIONAL</strong><small>D.I. YOGYAKARTA · ADMINISTRATOR</small></span></Link></header>
-      <section className="page-main shell">
+    <AdminLayout backHref="/admin/pemagang" backLabel="Kembali ke daftar pemagang">
         <div className="page-head"><p className="eyebrow">DATA PESERTA</p><h1>Daftar pemagang</h1><p>Telusuri seluruh pendaftar dan pantau status kegiatan magang.</p></div>
         <form className="admin-filters" action="/admin/pemagang" method="get">
           <div className="form-grid">
@@ -210,7 +167,7 @@ export default async function PemagangPage({
           <div className="filter-actions"><button className="button button-green" type="submit">Terapkan filter</button><Link className="text-link" href="/admin/pemagang">Hapus filter</Link><Link className="button button-dark button-small" href={exportUrl("xlsx")}>Export hasil filter (.xlsx)</Link><Link className="text-link" href={exportUrl("csv")}>CSV</Link><Link className="button button-dark button-small" href="/admin/pemagang/baru">Tambah pemagang</Link></div>
         </form>
         {(invalidFilter || invalidDivision) && <p className="form-message error" role="alert">Filter tidak valid. Periksa kembali rentang tanggal dan pilihan filter.</p>}
-        {unavailable ? <p className="form-message error" role="alert">Data pemagang tidak dapat dimuat. Pastikan migrasi database Tugas B1 telah dijalankan.</p> : <>
+        {unavailable ? <p className="form-message error" role="alert">Data pemagang tidak dapat dimuat. Pastikan migrasi fondasi database telah dijalankan.</p> : <>
           {!invalidFilter && !invalidDivision && <p className="results-count">{total === 0 ? "0 pemagang ditemukan." : `Menampilkan ${Math.min((currentPage - 1) * pageSize + 1, total)}–${Math.min(currentPage * pageSize, total)} dari ${total} pemagang.`}</p>}
           {invalidFilter || invalidDivision ? null : applicants.length === 0 ? <p className="form-message">Tidak ada data yang cocok dengan filter.</p> : <>
           <div className="table-wrap"><table className="data-table"><thead><tr><th>Nama</th><th>NIM</th><th>Asal kampus</th><th>Divisi</th><th>Jadwal</th><th>Status</th><th>Fase</th><th>Aksi</th></tr></thead><tbody>{applicants.map((applicant) => {
@@ -223,8 +180,6 @@ export default async function PemagangPage({
           </nav>
           </>}
         </>}
-      </section>
-      <footer className="site-footer"><div className="shell admin-panel-footer"><span>© 2026 PORTAL PERMAGANGAN</span><span>KANTOR PERTANAHAN KOTA YOGYAKARTA</span></div></footer>
-    </main>
+      </AdminLayout>
   );
 }

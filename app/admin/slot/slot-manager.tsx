@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type DivisionCapacity = {
@@ -14,7 +15,8 @@ type DivisionCapacity = {
 };
 
 export default function SlotManager({ divisions: initialDivisions }: { divisions: DivisionCapacity[] }) {
-  const [divisions, setDivisions] = useState(initialDivisions);
+  const router = useRouter();
+  const divisions = initialDivisions;
   const [editingId, setEditingId] = useState("");
   const [quota, setQuota] = useState("");
   const [message, setMessage] = useState("");
@@ -33,9 +35,7 @@ export default function SlotManager({ divisions: initialDivisions }: { divisions
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Kuota belum dapat diperbarui.");
-      setDivisions((current) => current.map((division) => division.divisi_id === divisionId
-        ? { ...division, kuota: result.kuota, sisa: Math.max(result.kuota - division.terisi, 0), status: result.kuota > division.terisi ? "tersedia" : "penuh" }
-        : division));
+      router.refresh();
       setEditingId("");
       setQuota("");
       setMessage("Kuota divisi berhasil diperbarui.");

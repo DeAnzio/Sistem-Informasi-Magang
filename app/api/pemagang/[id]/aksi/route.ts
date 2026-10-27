@@ -1,39 +1,10 @@
+import { hasValidOrigin } from "@/lib/request-origin";
 import { z } from "zod";
 import { getAuthenticatedAdminId } from "@/lib/supabase/authorize-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { sendApplicantEmail, type ApplicantEmailType } from "@/lib/email";
-import { isDurasiMagangValid } from "@/lib/tanggal";
+import { applicantActionSchema } from "@/lib/applicant-action-schema";
 
 export const runtime = "nodejs";
-
-const actionSchema = z.discriminatedUnion("aksi", [
-  z.object({
-    aksi: z.literal("terima"),
-    kirimEmail: z.boolean().default(true),
-  }).strict(),
-  z.object({
-    aksi: z.literal("ubah_divisi"),
-    divisiId: z.uuid(),
-  }).strict(),
-  z.object({
-    aksi: z.literal("tolak"),
-    catatan: z.string().trim().max(500).default(""),
-    kirimEmail: z.boolean().default(true),
-  }).strict(),
-  z.object({
-    aksi: z.literal("batalkan"),
-    catatan: z.string().trim().min(3).max(500),
-    kirimEmail: z.boolean().default(true),
-  }).strict(),
-  z.object({
-    aksi: z.literal("ubah_jadwal"),
-    tanggalMulai: z.iso.date(),
-    tanggalSelesai: z.iso.date(),
-    kirimEmail: z.boolean().default(true),
-  }).strict().refine(({ tanggalMulai, tanggalSelesai }) => {
-    return isDurasiMagangValid(tanggalMulai, tanggalSelesai);
-  }, { path: ["tanggalSelesai"], message: "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." }),
-]);
 
 const rpcErrors: Record<string, { status: number; message: string }> = {
   kuota_penuh: { status: 409, message: "Divisi penuh pada tanggal tersebut." },
@@ -53,17 +24,14 @@ export async function POST(
   const adminId = await getAuthenticatedAdminId().catch(() => null);
   if (!adminId) return Response.json({ error: "Tidak memiliki akses administrator." }, { status: 401 });
 
-  const origin = request.headers.get("origin");
-  if (origin && new URL(origin).host !== new URL(request.url).host) {
-    return Response.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
-  }
+  if (!hasValidOrigin(request)) return Response.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
 
   const { id } = await context.params;
   if (!z.uuid().safeParse(id).success) {
     return Response.json({ error: "ID pendaftar tidak valid." }, { status: 400 });
   }
   const body = await request.json().catch(() => null);
-  const parsed = actionSchema.safeParse(body);
+  const parsed = applicantActionSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json({ error: parsed.error.issues[0]?.message ?? "Data aksi tidak valid." }, { status: 400 });
   }
@@ -72,7 +40,7 @@ export async function POST(
     const supabase = createSupabaseAdminClient();
     const { data: current, error: currentError } = await supabase
       .from("applicants")
-      .select("status, tanggal_mulai, tanggal_selesai, divisi_id")
+      .select("id")
       .eq("id", id)
       .maybeSingle();
     if (currentError) {
@@ -82,46 +50,13 @@ export async function POST(
     if (!current) return Response.json({ error: "Data pemagang tidak ditemukan." }, { status: 404 });
 
     if (parsed.data.aksi === "ubah_divisi") {
-      if (current.status !== "pending") {
-        return Response.json({ error: "Divisi hanya dapat diubah selama pendaftaran masih menunggu verifikasi." }, { status: 409 });
-      }
-      const { data: division, error: divisionError } = await supabase
-        .from("divisi")
-        .select("id")
-        .eq("id", parsed.data.divisiId)
-        .eq("aktif", true)
-        .maybeSingle();
-      if (divisionError) {
-        console.error("Gagal memeriksa divisi untuk penempatan pemagang.", { message: divisionError.message });
-        return Response.json({ error: "Divisi belum dapat diperiksa." }, { status: 503 });
-      }
-      if (!division) return Response.json({ error: "Divisi tidak ditemukan atau tidak aktif." }, { status: 404 });
-
-      const { data: updatedApplicant, error: updateError } = await supabase
-        .from("applicants")
-        .update({ divisi_id: division.id })
-        .eq("id", id)
-        .eq("status", "pending")
-        .select("id")
-        .maybeSingle();
-      if (updateError) {
-        if (updateError.code === "23505") {
-          return Response.json({ error: "Peserta dengan NIM dan tanggal mulai tersebut sudah tercatat di divisi ini." }, { status: 409 });
-        }
-        console.error("Gagal menyimpan divisi penempatan pemagang.", { message: updateError.message });
-        return Response.json({ error: "Divisi penempatan belum dapat disimpan." }, { status: 500 });
-      }
-      if (!updatedApplicant) {
-        return Response.json({ error: "Status pendaftaran berubah. Muat ulang data peserta lalu coba kembali." }, { status: 409 });
-      }
-      const { error: activityError } = await supabase.from("aktivitas_pendaftar").insert({
-        applicant_id: id,
-        aksi: "ubah_divisi",
-        oleh: adminId,
+      const { data: result, error } = await supabase.rpc("ubah_divisi_pendaftar", {
+        p_id: id, p_admin: adminId, p_divisi: parsed.data.divisiId,
       });
-      if (activityError) {
-        console.error("Divisi penempatan tersimpan tetapi riwayat aktivitas gagal dicatat.", { message: activityError.message });
-        return Response.json({ result: "ok", warning: "Divisi tersimpan, tetapi riwayat aktivitas belum tercatat." });
+      if (error) return Response.json({ error: "Divisi belum dapat disimpan." }, { status: 503 });
+      if (result !== "ok") {
+        const failure = rpcErrors[result ?? ""];
+        return Response.json({ error: failure?.message ?? "Divisi belum dapat disimpan." }, { status: failure?.status ?? 500 });
       }
       return Response.json({ result: "ok" });
     }
@@ -186,42 +121,7 @@ export async function POST(
       return Response.json({ error: "Aksi belum dapat disimpan." }, { status: 500 });
     }
 
-    let emailType: ApplicantEmailType | null = null;
-    switch (parsed.data.aksi) {
-      case "terima":
-        emailType = "diterima";
-        break;
-      case "tolak":
-        emailType = "ditolak";
-        break;
-      case "batalkan":
-        emailType = "dibatalkan";
-        break;
-      case "ubah_jadwal":
-        if (current.status === "diterima") emailType = "jadwal_diubah";
-        break;
-    }
-
-    let emailSent: boolean | null = null;
-    let emailMessage: string | undefined;
-    if (emailType && parsed.data.kirimEmail) {
-      try {
-        const scheduleBefore = parsed.data.aksi === "ubah_jadwal"
-          ? { tanggalMulai: current.tanggal_mulai, tanggalSelesai: current.tanggal_selesai }
-          : null;
-        const email = await sendApplicantEmail(id, emailType, scheduleBefore);
-        emailSent = email.sent;
-        if (!email.sent || !email.logged) {
-          emailMessage = email.message ?? "Status email belum dapat dipastikan.";
-        }
-      } catch {
-        emailSent = false;
-        emailMessage = "Aksi berhasil, tetapi email belum dapat diproses. Periksa riwayat email.";
-        console.error("Pengiriman email setelah aksi pemagang gagal.");
-      }
-    }
-
-    return Response.json({ result: "ok", emailSent, emailMessage });
+    return Response.json({ result: "ok" });
   } catch {
     return Response.json({ error: "Layanan aksi pemagang belum tersedia." }, { status: 503 });
   }

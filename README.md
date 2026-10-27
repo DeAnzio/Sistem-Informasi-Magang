@@ -7,20 +7,19 @@ Portal informasi dan pendaftaran permagangan Kantor Pertanahan Kota Yogyakarta. 
 - Next.js 16 dengan App Router dan TypeScript
 - React 19
 - Supabase: PostgreSQL, Authentication, dan Storage
-- Nodemailer untuk notifikasi email
 - reCAPTCHA v2 Checkbox untuk perlindungan formulir
 - ExcelJS untuk ekspor daftar peserta
 
 ## Persyaratan
 
-- Node.js 20.9 atau lebih baru
+- Node.js 22 atau lebih baru
 - npm
 - Proyek Supabase untuk fitur database, autentikasi, dan penyimpanan berkas
 
 ## Menjalankan secara lokal
 
 ```bash
-npm install
+npm ci
 Copy-Item .env.example .env.local
 ```
 
@@ -41,25 +40,22 @@ Buka [http://localhost:3000](http://localhost:3000). File `.env.local` tidak bol
 | `SUPABASE_SERVICE_ROLE_KEY` | Pendaftaran, unggah, dan operasi admin | Service role key yang hanya boleh digunakan di server. Jangan pernah menambahkan prefiks `NEXT_PUBLIC_`. |
 | `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Formulir pendaftaran | Site key reCAPTCHA v2 Checkbox. |
 | `RECAPTCHA_SECRET_KEY` | Formulir pendaftaran | Secret key reCAPTCHA; hanya digunakan di server. |
-| `SMTP_HOST` | Email | Host server SMTP. |
-| `SMTP_PORT` | Email | Port SMTP; contoh konfigurasi menggunakan `587`. |
-| `SMTP_USER` | Email | Nama pengguna SMTP. |
-| `SMTP_PASS` | Email | Kata sandi SMTP. |
-| `SMTP_FROM` | Email | Nama dan alamat pengirim, misalnya `"Bagian Kepegawaian <magang@instansi.go.id>"`. |
 
-Variabel Supabase diperlukan oleh halaman dan fitur yang terhubung ke Supabase. Pendaftaran online juga memerlukan service role key dan konfigurasi reCAPTCHA. Pengiriman email memerlukan konfigurasi SMTP.
+Variabel Supabase diperlukan oleh halaman dan fitur yang terhubung ke Supabase. Pendaftaran online juga memerlukan service role key dan konfigurasi reCAPTCHA.
 
 ## Menyiapkan Supabase
 
+**Versi fondasi:** baca [panduan migrasi fondasi](./supabase/MIGRATION_FONDASI.md) sebelum memperbarui database lama. Database baru cukup memakai `schema.sql`. Database lama memerlukan `migration_fondasi_enum.sql` dan `migration_fondasi.sql` setelah migrasi struktur yang sesuai. Terapkan migrasi dan kode sebagai satu rilis; tiket unggah versi lama perlu dibuat ulang.
+
+
 ### Database
 
-Untuk database baru, jalankan seluruh [supabase/schema.sql](./supabase/schema.sql) melalui SQL Editor Supabase. Skema membuat tabel admin, divisi, pendaftar, dan log email, beserta fungsi database untuk kuota dan keputusan verifikasi.
+Untuk database baru, jalankan seluruh [supabase/schema.sql](./supabase/schema.sql) melalui SQL Editor Supabase. Skema membuat tabel admin, divisi, pendaftar, aktivitas, dan sesi unggahan, beserta fungsi database untuk kuota dan keputusan verifikasi.
 
 Untuk database lama, **jangan jalankan skema baru di atas database yang sudah berisi data**. Pilih migrasi sesuai kondisi database:
 
 1. Database lama yang masih menggunakan tabel `periode` dan `slots`: jalankan [supabase/migration_kapasitas_divisi.sql](./supabase/migration_kapasitas_divisi.sql).
 2. Setelah migrasi kapasitas atau untuk database aplikasi yang sudah berjalan, jalankan [supabase/migration_penempatan_divisi_durasi.sql](./supabase/migration_penempatan_divisi_durasi.sql). Migrasi ini memungkinkan admin menentukan divisi saat verifikasi dan menegakkan durasi magang minimum satu bulan.
-3. Bila database lama memiliki constraint jenis email pada `email_logs` yang belum mencakup tipe terbaru, jalankan [supabase/migration_email_log_types.sql](./supabase/migration_email_log_types.sql).
 
 Tinjau kondisi dan cadangkan database sebelum menjalankan migrasi produksi. Jalankan migrasi hanya sekali dan sesuai urutan yang berlaku untuk versi database Anda.
 
@@ -73,7 +69,7 @@ insert into public.admins (user_id, nama)
 values ('UUID-USER-AUTH', 'Nama Admin');
 ```
 
-Hanya pengguna yang terdaftar di `admins` yang dapat mengakses panel admin. Perlindungan dilakukan pada middleware dan diperiksa kembali pada API admin.
+Hanya pengguna yang terdaftar di `admins` yang dapat mengakses panel admin. Perlindungan dilakukan pada proxy dan diperiksa kembali pada API admin.
 
 ### Penyimpanan berkas
 
@@ -92,9 +88,9 @@ Pendaftaran mengunggah CV dan surat pengantar ke bucket ini. Tautan unggah berta
 
 Daftarkan domain lokal dan domain produksi pada Google reCAPTCHA Admin Console dengan tipe **reCAPTCHA v2 Checkbox**. Atur site key dan secret key pada environment yang sesuai. Verifikasi dilakukan di server sebelum tautan unggah dibuat. Formulir pendaftaran tidak dapat digunakan bila reCAPTCHA belum dikonfigurasi.
 
-### Email
+### Pemberitahuan hasil
 
-Atur kredensial SMTP untuk mengirim hasil keputusan kepada pendaftar. Hasil pengiriman dicatat pada `email_logs`; email yang gagal dapat dicoba ulang dari detail verifikasi. Pastikan alamat `SMTP_FROM` diizinkan oleh penyedia SMTP.
+Aplikasi tidak mengirim notifikasi email dan tidak memerlukan konfigurasi SMTP. Alamat email peserta tetap disimpan sebagai biodata dan tersedia pada ekspor. Petugas menyampaikan hasil melalui kanal yang disepakati; halaman pelacakan status publik belum tersedia.
 
 ## Fitur dan rute
 
@@ -118,12 +114,11 @@ Atur kredensial SMTP untuk mengirim hasil keputusan kepada pendaftar. Hasil peng
 | `/admin` | Ringkasan status pendaftaran. |
 | `/admin/slot` | Melihat dan mengelola kuota setiap divisi. |
 | `/admin/verifikasi` | Antrean pendaftar yang perlu ditinjau. |
-| `/admin/verifikasi/[id]` | Detail pendaftar, penetapan divisi, keputusan, dan percobaan ulang email. |
 | `/admin/pemagang` | Daftar peserta. |
 | `/admin/pemagang/[id]` | Detail dan tindakan pengelolaan peserta. |
 | `/admin/pemagang/baru` | Menambahkan peserta secara manual. |
 
-API aplikasi berada di bawah `app/api/`. Route tersebut menangani pendaftaran dan unggahan, tindakan admin, akses berkas privat, email, serta ekspor daftar peserta.
+API aplikasi berada di bawah `app/api/`. Route tersebut menangani pendaftaran dan unggahan, tindakan admin, akses berkas privat, serta ekspor daftar peserta.
 
 ## Aturan pendaftaran
 
@@ -139,26 +134,53 @@ API aplikasi berada di bawah `app/api/`. Route tersebut menangani pendaftaran da
 ```text
 app/          Halaman publik, panel admin, dan API routes
 components/   Komponen antarmuka bersama
-lib/          Integrasi Supabase, email, ekspor, validasi, dan helper
+lib/          Integrasi Supabase, ekspor, validasi, dan helper
 public/       Aset statis dan ilustrasi
 supabase/     Skema database dan migrasi SQL
-middleware.ts Proteksi rute panel administrator
+proxy.ts Proteksi rute panel administrator
 ```
 
 ## Pemeriksaan dan build
 
+Perintah dev/build memakai Webpack untuk menghindari kegagalan worker CSS Turbopack yang ditemukan di Windows. Next.js tetap menggunakan App Router.
+
+```bash
+npm run typecheck
+npm test
+npm run test:db
+```
+
+Tes database memakai PostgreSQL PGlite lokal dalam memori dan tidak mengakses database aktif. Workflow CI menjalankan lint, pemeriksaan tipe, kedua kelompok tes, build, dan smoke test HTTP.
+
+
 ```bash
 npm run lint
 npm run build
+npm run test:smoke
 npm run start
 ```
 
 `npm run start` menjalankan hasil build produksi, sehingga jalankan `npm run build` terlebih dahulu.
 
+`npm run test:smoke` memakai backend Supabase tiruan lokal untuk memeriksa keputusan admin, input manual, detail peserta, dan penghapusan endpoint pengiriman. Jalankan pada build pengujian tanpa konfigurasi proyek aktif. Penjaga jaringan pada proses server menolak URL backend lain. Tes ini tidak menggantikan uji Storage dan konkurensi multi-koneksi di staging.
+
 ## Catatan deployment
 
 - Atur semua variabel lingkungan pada platform deployment dan pastikan nilainya berasal dari proyek Supabase yang sama.
-- Jangan mengekspos `SUPABASE_SERVICE_ROLE_KEY`, `RECAPTCHA_SECRET_KEY`, atau kredensial SMTP ke browser.
+- Jangan mengekspos `SUPABASE_SERVICE_ROLE_KEY`, atau `RECAPTCHA_SECRET_KEY` ke browser.
 - Pastikan domain produksi didaftarkan di reCAPTCHA dan bucket `berkas` tetap private.
 - Terapkan skema atau migrasi database yang tepat sebelum menjalankan aplikasi.
 - Pastikan kebijakan privasi, persetujuan pemrosesan data, dan prosedur retensi berkas telah sesuai sebelum menerima pendaftaran.
+
+## Struktur fondasi dan pemeliharaan
+
+- `lib/database.types.ts`: kontrak tabel dan RPC yang dipakai seluruh client Supabase; perbarui bersama migrasi atau hasilkan ulang dari proyek staging yang sudah dimigrasikan.
+- `lib/applicant-schema.ts`: validasi bersama form, API dan tiket pendaftaran.
+- `lib/pemagang-filters.ts`: filter dan pengurutan daftar/ekspor yang sama; pencarian regex literal untuk menangani karakter khusus.
+- `components/admin-layout.tsx`: kerangka halaman administrator bersama.
+- `sesi_unggahan`: finalisasi dan pembatalan unggahan diputuskan dengan row lock; request ulang tidak membuat pendaftaran baru atau menghapus berkas final.
+- `npm run cleanup:uploads`: membersihkan unggahan sementara berumur lebih dari 24 jam; baca panduan migrasi sebelum menjalankan.
+
+Seluruh mutasi data peserta dan kuota dari browser melewati API server. Database memeriksa kapasitas peserta diterima melalui trigger, dan RPC keputusan mencatat aktivitas dalam transaksi yang sama. Ekspor mengambil beberapa halaman serta memeriksa perubahan jumlah/duplikasi ID selama pengambilan data.
+
+Pengiriman notifikasi email sudah dihapus. Identitas instansi, kontak resmi, survei dan kebijakan data masih memerlukan penetapan pengelola.

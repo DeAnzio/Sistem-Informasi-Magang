@@ -1,10 +1,11 @@
+import { readAllPages, ExportDataChangedError } from "@/lib/read-all-pages";
 import { z } from "zod";
 import { getAuthenticatedAdminId } from "@/lib/supabase/authorize-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { firstRelation } from "@/lib/normalize-relation";
 import { createCsv, createXlsx, type ExportRow } from "@/lib/export";
-import { escapeApplicantSearchTerm } from "@/lib/pemagang-filters";
+import { buildApplicantQuery, type ApplicantFilters } from "@/lib/pemagang-filters";
 import { fasePemagang, hariIniWIB } from "@/lib/tanggal";
 import type { ApplicantStatus } from "@/lib/types";
 
@@ -75,7 +76,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "Filter ekspor tidak valid." }, { status: 400 });
   }
 
-  const filters = {
+  const filters: ApplicantFilters = {
     q,
     status: phase?.success ? "diterima" : status?.success ? status.data : "",
     phase: phase?.success ? phase.data : "",
@@ -87,30 +88,7 @@ export async function GET(request: Request) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    const selection = "id, nama, email, no_hp, asal_kampus, jurusan, nim, divisi_id, tanggal_mulai, tanggal_selesai, status, sumber, verified_by, verified_at, created_at, divisi:divisi(nama)";
-    const buildQuery = (head: boolean) => {
-      let query = supabase.from("applicants").select(selection, { count: "exact", head });
-      if (filters.q) {
-        const search = escapeApplicantSearchTerm(filters.q);
-        query = query.or(`nama.ilike.%${search}%,nim.ilike.%${search}%,asal_kampus.ilike.%${search}%`);
-      }
-      if (filters.phase) {
-        const today = hariIniWIB();
-        query = query.eq("status", "diterima");
-        if (filters.phase === "akan_datang") query = query.gt("tanggal_mulai", today);
-        if (filters.phase === "aktif") query = query.lte("tanggal_mulai", today).gte("tanggal_selesai", today);
-        if (filters.phase === "selesai") query = query.lt("tanggal_selesai", today);
-      } else if (filters.status) {
-        query = query.eq("status", filters.status);
-      }
-      if (filters.divisionId) query = query.eq("divisi_id", filters.divisionId);
-      if (filters.throughDate) query = query.lte("tanggal_mulai", filters.throughDate);
-      if (filters.fromDate) query = query.gte("tanggal_selesai", filters.fromDate);
-      if (filters.sort === "tanggal_mulai") query = query.order("tanggal_mulai", { ascending: true }).order("created_at", { ascending: false });
-      else if (filters.sort === "nama") query = query.order("nama", { ascending: true });
-      else query = query.order("created_at", { ascending: false });
-      return query;
-    };
+    const buildQuery = (head: boolean) => buildApplicantQuery(supabase, filters, head);
 
     const { count, error: countError } = await buildQuery(true);
     if (countError) {
@@ -125,10 +103,9 @@ export async function GET(request: Request) {
       return Response.json({ error: "Hasil melebihi 5.000 baris. Persempit filter sebelum mengekspor." }, { status: 422 });
     }
 
-    const { data, error } = await buildQuery(false).range(0, maxExportRows - 1);
-    if (error) {
-      console.error("Gagal mengambil baris ekspor pemagang.", { message: error.message });
-      return Response.json({ error: "Data ekspor belum dapat dimuat." }, { status: 503 });
+    const data = await readAllPages((from, to) => buildQuery(false).range(from, to), count, maxExportRows);
+    if (new Set(data.map((row) => row.id)).size !== data.length) {
+      return Response.json({ error: "Data berubah selama ekspor. Muat ulang dan coba kembali." }, { status: 409 });
     }
 
     const adminIds = Array.from(new Set((data ?? [])
@@ -191,7 +168,8 @@ export async function GET(request: Request) {
         "Cache-Control": "private, no-store",
       },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof ExportDataChangedError) return Response.json({ error: error.message }, { status: 409 });
     return Response.json({ error: "Layanan ekspor pemagang belum tersedia." }, { status: 503 });
   }
 }

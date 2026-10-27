@@ -1,3 +1,4 @@
+import type { Database } from "@/lib/database.types";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import PublicLayout from "@/components/public-layout";
@@ -19,7 +20,7 @@ async function getCapacity() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return { divisions: [], unavailable: true };
-  const supabase = createClient(url, key, { auth: { persistSession: false } });
+  const supabase = createClient<Database>(url, key, { auth: { persistSession: false } });
   const { data, error } = await supabase.rpc("get_slot_info");
   return { divisions: (data as DivisionCapacity[] | null) ?? [], unavailable: Boolean(error) };
 }

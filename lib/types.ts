@@ -7,6 +7,7 @@ export type ApplicantActivityAction =
   | "terima"
   | "tolak"
   | "batalkan"
+  | "ubah_divisi"
   | "ubah_jadwal"
   | "unduh_berkas";
 

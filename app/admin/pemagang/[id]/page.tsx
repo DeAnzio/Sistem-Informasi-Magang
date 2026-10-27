@@ -1,8 +1,8 @@
+import AdminLayout from "@/components/admin-layout";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import ApplicantActions from "./applicant-actions";
-import RetryEmail from "./retry-email";
 import { fasePemagang } from "@/lib/tanggal";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -23,13 +23,6 @@ const phaseLabels = {
   aktif: "Aktif",
   selesai: "Selesai",
 } as const;
-const emailLabels: Record<string, string> = {
-  diterima: "Pendaftaran diterima",
-  ditolak: "Pendaftaran ditolak",
-  dibatalkan: "Pembatalan",
-  jadwal_diubah: "Perubahan jadwal",
-};
-
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeZone: "UTC" })
     .format(new Date(`${value}T00:00:00Z`));
@@ -100,7 +93,7 @@ export default async function DetailPemagangPage({
     .eq("id", id)
     .maybeSingle();
   if (error) {
-    return <main className="admin-shell"><section className="page-main shell"><p className="form-message error" role="alert">Data pemagang belum dapat dimuat. Pastikan migrasi database Tugas B1 telah dijalankan.</p><Link className="text-link" href="/admin/pemagang">Kembali ke daftar pemagang</Link></section></main>;
+    return <main className="admin-shell"><section className="page-main shell"><p className="form-message error" role="alert">Data pemagang belum dapat dimuat. Pastikan migrasi fondasi database telah dijalankan.</p><Link className="text-link" href="/admin/pemagang">Kembali ke daftar pemagang</Link></section></main>;
   }
   if (!data) notFound();
 
@@ -125,30 +118,19 @@ export default async function DetailPemagangPage({
     });
   }
   const phase = fasePemagang(applicant.status, applicant.tanggal_mulai, applicant.tanggal_selesai);
-  const noticeType = z.enum(["kuota_penuh", "riwayat_gagal", "terima_gagal", "email_gagal", "email_log_gagal"])
+  const noticeType = z.enum(["kuota_penuh", "riwayat_gagal", "terima_gagal"])
     .safeParse(Array.isArray(query.hasil) ? query.hasil[0] : query.hasil);
   const noticeMessages = {
     kuota_penuh: "Data tersimpan sebagai pending karena divisi penuh pada tanggal tersebut.",
     riwayat_gagal: "Data tersimpan sebagai pending, tetapi riwayat aktivitas belum tercatat.",
     terima_gagal: "Data tersimpan sebagai pending karena status diterima belum dapat diproses.",
-    email_gagal: "Data diterima, tetapi email pemberitahuan belum berhasil dikirim.",
-    email_log_gagal: "Data diterima dan email terkirim, tetapi riwayat email belum tercatat.",
   };
-  const [{ data: activityRows, error: activitiesError }, { data: emailRows, error: emailError }] = await Promise.all([
-    supabase
-      .from("aktivitas_pendaftar")
-      .select("id, aksi, detail, oleh, waktu")
-      .eq("applicant_id", id)
-      .order("waktu", { ascending: false }),
-    supabase
-      .from("email_logs")
-      .select("id, tipe, status_kirim, sent_at, error_pesan")
-      .eq("applicant_id", id)
-      .order("sent_at", { ascending: false }),
-  ]);
+  const { data: activityRows, error: activitiesError } = await supabase
+    .from("aktivitas_pendaftar")
+    .select("id, aksi, detail, oleh, waktu")
+    .eq("applicant_id", id)
+    .order("waktu", { ascending: false }).order("id");
   const activities = activityRows ?? [];
-  const emails = emailRows ?? [];
-  const lastEmail = emails[0];
   const adminIds = Array.from(new Set([
     applicant.verified_by,
     ...activities.map((activity) => activity.oleh),
@@ -174,12 +156,9 @@ export default async function DetailPemagangPage({
   }
 
   return (
-    <main className="admin-shell">
-      <div className="utility-bar"><div className="shell utility-inner"><span>RUANG ADMINISTRATOR</span><Link href="/admin/pemagang">Kembali ke daftar pemagang <span aria-hidden="true">↗</span></Link></div></div>
-      <header className="site-header shell"><Link className="brand" href="/admin"><span className="brand-mark" aria-hidden="true">BPN</span><span><strong>BADAN PERTANAHAN NASIONAL</strong><small>D.I. YOGYAKARTA · ADMINISTRATOR</small></span></Link></header>
-      <section className="page-main shell">
+    <AdminLayout backHref="/admin/pemagang" backLabel="Kembali ke daftar pemagang">
         <div className="page-head"><p className="eyebrow">DETAIL PEMAGANG</p><h1>{applicant.nama}</h1><div className="badge-row"><span className="status-pill">{statusLabels[applicant.status]}</span>{phase && <span className="status-pill">{phaseLabels[phase]}</span>}<span className="status-pill">{applicant.sumber === "manual" ? "Input manual" : "Pendaftaran online"}</span></div></div>
-        {noticeType.success && <p className={`form-message${noticeType.data === "email_gagal" || noticeType.data === "email_log_gagal" || noticeType.data === "riwayat_gagal" ? " error" : ""}`} role={noticeType.data.includes("gagal") ? "alert" : "status"}>{noticeMessages[noticeType.data]}</p>}
+        {noticeType.success && <p className={`form-message${noticeType.data === "riwayat_gagal" ? " error" : ""}`} role={noticeType.data.includes("gagal") ? "alert" : "status"}>{noticeMessages[noticeType.data]}</p>}
 
         <section className="admin-detail-section"><h2>Biodata</h2><dl className="detail-grid">
           <div><dt>Email</dt><dd>{applicant.email}</dd></div><div><dt>Nomor HP</dt><dd>{applicant.no_hp}</dd></div>
@@ -203,13 +182,8 @@ export default async function DetailPemagangPage({
 
         <section className="admin-detail-section"><h2>Aksi</h2>{applicant.status === "ditolak" || applicant.status === "dibatalkan" ? <p className="form-message">Status final. Tidak ada aksi lanjutan.</p> : <ApplicantActions id={id} status={applicant.status} tanggalMulai={applicant.tanggal_mulai} tanggalSelesai={applicant.tanggal_selesai} divisiId={applicant.divisi_id} divisions={actionDivisions} divisionsUnavailable={Boolean(divisionsError)} />}</section>
 
-        <section className="admin-detail-section"><h2>Riwayat aktivitas</h2>{activitiesError ? <p className="form-message error" role="alert">Riwayat aktivitas tidak dapat dimuat. Pastikan migrasi database Tugas B1 telah dijalankan.</p> : activities.length === 0 ? <p className="form-message">Belum ada riwayat aktivitas.</p> : <ol className="activity-list">{activities.map((activity) => <li key={activity.id}><strong>{activity.aksi.replaceAll("_", " ")}</strong><p>{activityDescription(activity.aksi, activity.detail)}</p><small>{(activity.oleh && adminNames.get(activity.oleh)) || "Admin"} · {formatTimestamp(activity.waktu)}</small></li>)}</ol>}{adminNamesUnavailable && <p className="form-message error" role="alert">Nama admin pada riwayat belum dapat dimuat.</p>}</section>
+        <section className="admin-detail-section"><h2>Riwayat aktivitas</h2>{activitiesError ? <p className="form-message error" role="alert">Riwayat aktivitas tidak dapat dimuat. Pastikan migrasi fondasi database telah dijalankan.</p> : activities.length === 0 ? <p className="form-message">Belum ada riwayat aktivitas.</p> : <ol className="activity-list">{activities.map((activity) => <li key={activity.id}><strong>{activity.aksi.replaceAll("_", " ")}</strong><p>{activityDescription(activity.aksi, activity.detail)}</p><small>{(activity.oleh && adminNames.get(activity.oleh)) || "Admin"} · {formatTimestamp(activity.waktu)}</small></li>)}</ol>}{adminNamesUnavailable && <p className="form-message error" role="alert">Nama admin pada riwayat belum dapat dimuat.</p>}</section>
 
-        <section className="admin-detail-section"><h2>Riwayat email</h2>{emailError ? <p className="form-message error" role="alert">Riwayat email tidak dapat dimuat.</p> : emails.length === 0 ? <p className="form-message">Belum ada email pemberitahuan.</p> : <div className="table-wrap"><table className="data-table"><thead><tr><th>Jenis</th><th>Status</th><th>Waktu</th><th>Pesan</th></tr></thead><tbody>{emails.map((email) => <tr key={email.id}><td>{emailLabels[email.tipe] ?? email.tipe}</td><td><span className="status-pill">{email.status_kirim === "terkirim" ? "Terkirim" : "Gagal"}</span></td><td>{formatTimestamp(email.sent_at)}</td><td>{email.error_pesan || "—"}</td></tr>)}</tbody></table></div>}
-          {lastEmail?.status_kirim === "gagal" && <div className="retry-email-panel"><p>Email terakhir gagal dikirim. Anda dapat mencoba mengirim ulang.</p><RetryEmail applicantId={id} /></div>}
-        </section>
-      </section>
-      <footer className="site-footer"><div className="shell admin-panel-footer"><span>© 2026 PORTAL PERMAGANGAN</span><span>KANTOR PERTANAHAN KOTA YOGYAKARTA</span></div></footer>
-    </main>
+      </AdminLayout>
   );
 }

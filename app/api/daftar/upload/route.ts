@@ -1,39 +1,28 @@
+import { hasValidOrigin } from "@/lib/request-origin";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createRegistrationTicket } from "@/lib/registration-ticket";
 import { verifyRegistrationRecaptcha } from "@/lib/recaptcha";
-import { isDurasiMagangValid } from "@/lib/tanggal";
+import { applicantFields, fileMetadataSchema, validApplicantDuration, durationIssue, acceptedFileTypes, validationMessage } from "@/lib/applicant-schema";
 
 export const runtime = "nodejs";
 
-const requestSchema = z.object({
-  nama: z.string().trim().min(2).max(120),
-  email: z.email().max(254),
-  no_hp: z.string().regex(/^[0-9]{8,13}$/, "Nomor HP harus berisi 8 sampai 13 digit angka."),
-  asal_kampus: z.string().trim().min(2).max(160),
-  jurusan: z.string().trim().min(2).max(30),
-  nim: z.string().regex(/^[0-9]{2,15}$/, "NIM harus berisi 2 sampai 15 digit angka."),
-  tanggal_mulai: z.iso.date(),
-  tanggal_selesai: z.iso.date(),
+const requestSchema = applicantFields.extend({
   recaptchaToken: z.string().min(1).max(4096),
-  berkas_cv: z.object({ type: z.string(), size: z.number().int().positive().max(5 * 1024 * 1024) }),
-  berkas_surat_pengantar: z.object({ type: z.string(), size: z.number().int().positive().max(5 * 1024 * 1024) }),
-}).refine(({ tanggal_mulai, tanggal_selesai }) => {
-  return isDurasiMagangValid(tanggal_mulai, tanggal_selesai);
-}, { path: ["tanggal_selesai"], message: "Tanggal selesai harus sekurang-kurangnya satu bulan setelah tanggal mulai dan durasi maksimal 366 hari." });
-
-const acceptedTypes = new Map([["application/pdf", "pdf"], ["image/jpeg", "jpg"], ["image/png", "png"]]);
+  berkas_cv: fileMetadataSchema,
+  berkas_surat_pengantar: fileMetadataSchema,
+}).refine(validApplicantDuration, durationIssue);
+const acceptedTypes = acceptedFileTypes;
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && new URL(origin).host !== new URL(request.url).host) return Response.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
+  if (!hasValidOrigin(request)) return Response.json({ error: "Asal permintaan tidak valid." }, { status: 403 });
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return Response.json({ error: "Layanan pendaftaran belum dikonfigurasi." }, { status: 503 });
   }
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "Periksa data dan berkas pendaftaran." }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: validationMessage(parsed.error) }, { status: 400 });
   const recaptcha = await verifyRegistrationRecaptcha(parsed.data.recaptchaToken, new URL(request.url).hostname);
   if (!recaptcha.ok) {
     if (recaptcha.reason === "rejected") {
@@ -57,6 +46,12 @@ export async function POST(request: Request) {
       berkas_cv: `${applicantId}/cv.${acceptedTypes.get(parsed.data.berkas_cv.type)}`,
       berkas_surat_pengantar: `${applicantId}/surat-pengantar.${acceptedTypes.get(parsed.data.berkas_surat_pengantar.type)}`,
     };
+    const applicant = applicantFields.parse(parsed.data);
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+    const { error: sessionError } = await supabase.from("sesi_unggahan").insert({
+      id: applicantId, sumber: "online", applicant, files, expires_at: new Date(expiresAt).toISOString(),
+    });
+    if (sessionError) throw new Error("Sesi unggahan belum dapat disiapkan.");
     const uploads = [];
     for (const path of Object.values(files)) {
       const { data, error } = await supabase.storage.from("berkas").createSignedUploadUrl(path);
@@ -77,7 +72,7 @@ export async function POST(request: Request) {
 
     const ticket = createRegistrationTicket({
       applicantId,
-      expiresAt: Date.now() + 15 * 60 * 1000,
+      expiresAt,
       applicant: {
         nama: parsed.data.nama,
         email: parsed.data.email,

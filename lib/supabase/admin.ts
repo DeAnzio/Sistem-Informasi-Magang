@@ -1,3 +1,4 @@
+import type { Database } from "@/lib/database.types";
 import { createClient } from "@supabase/supabase-js";
 
 export function createSupabaseAdminClient() {
@@ -5,7 +6,7 @@ export function createSupabaseAdminClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) throw new Error("Supabase server belum dikonfigurasi.");
 
-  return createClient(url, serviceKey, {
+  return createClient<Database>(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

@@ -1,20 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { isDurasiMagangValid } from "@/lib/tanggal";
+import { applicantSchema } from "@/lib/applicant-schema";
 
 const ticketPayloadSchema = z.object({
   applicantId: z.uuid(),
   expiresAt: z.number().int(),
-  applicant: z.object({
-    nama: z.string(),
-    email: z.email(),
-    no_hp: z.string().regex(/^[0-9]{8,13}$/),
-    asal_kampus: z.string(),
-    jurusan: z.string().min(2).max(30),
-    nim: z.string().regex(/^[0-9]{2,15}$/),
-    tanggal_mulai: z.iso.date(),
-    tanggal_selesai: z.iso.date(),
-  }).refine(({ tanggal_mulai, tanggal_selesai }) => isDurasiMagangValid(tanggal_mulai, tanggal_selesai)),
+  applicant: applicantSchema,
   files: z.object({
     berkas_cv: z.string(),
     berkas_surat_pengantar: z.string(),
@@ -26,7 +17,7 @@ export type RegistrationTicketPayload = z.infer<typeof ticketPayloadSchema>;
 function signature(payload: string) {
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) throw new Error("Konfigurasi server belum tersedia.");
-  return createHmac("sha256", secret).update(payload).digest("base64url");
+  return createHmac("sha256", secret).update("registration:" + payload).digest("base64url");
 }
 
 export function createRegistrationTicket(payload: RegistrationTicketPayload) {

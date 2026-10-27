@@ -6,7 +6,6 @@ export default function KetentuanPage() {
     <PublicLayout activePath="/ketentuan" title="Ketentuan Magang/Praktek Kerja Lapangan">
       <article className="public-container long-document">
         <section className="info-section">
-          <h2>  </h2>
           <h2>A. Kegiatan Magang</h2>
           <ol>
             <li>Peserta mengikuti kegiatan sesuai tujuan pembelajaran yang disampaikan lembaga pendidikan.</li>

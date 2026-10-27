@@ -25,7 +25,7 @@ export default function Home() {
           <ol>
             <li>Mengajukan surat permohonan resmi dari lembaga pendidikan.</li>
             <li>Berstatus sebagai siswa atau mahasiswa aktif selama masa magang.</li>
-            <li>Mengikuti program sekurang-kurangnya 1 bulan dan paling lama 12 bulan.</li>
+            <li>Mengikuti program sekurang-kurangnya 1 bulan dan paling lama 366 hari.</li>
             <li>Memperoleh penempatan sesuai formasi dan ketersediaan kuota.</li>
           </ol>
         </section>
