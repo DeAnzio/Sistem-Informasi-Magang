@@ -3,15 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "dev:preview": "node scripts/dev-preview.mjs",
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test --import tsx tests/*.test.ts",
-    "test:db": "node --test tests/database.test.mjs",
+    "test:db": "node --test tests/database.test.mjs tests/portal-migration.test.mjs",
     "test:smoke": "node tests/no-email.smoke.mjs",
-    "cleanup:uploads": "node --env-file=.env.local --import tsx scripts/cleanup-uploads.ts"
+    "cleanup:uploads": "node --env-file=.env.local --import tsx scripts/cleanup-uploads.ts",
+    "test:portal": "node tests/portal-http.mjs",
+    "cleanup:portal": "node --env-file=.env.local --import tsx scripts/cleanup-portal-uploads.ts",
+    "dev:portal": "node scripts/dev-portal.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -1,0 +1,6 @@
+export type PreviewStatus = 'pending' | 'perbaikan' | 'diperiksa' | 'diterima' | 'ditolak' | 'dibatalkan' | 'tunggu' | 'selesai';
+export type PreviewFile = { id: string; name: string; type: string; version: number; kind: string };
+export const reviewLabels = { identity: 'Identitas sesuai dokumen', cv: 'CV lengkap dan dapat dibaca', surat: 'Surat pengantar sesuai', schedule: 'Periode magang sesuai ketentuan' };
+export type PreviewReview = Record<keyof typeof reviewLabels, boolean>;
+export type PreviewApplicant = { id: string; code: string; nama: string; email: string; no_hp: string; asal_kampus: string; jurusan: string; nim?: string; tanggal_mulai: string; tanggal_selesai: string; status: PreviewStatus; divisi: string; pesan: string; created: string; files: PreviewFile[]; review?: PreviewReview; revisionNotes?: Partial<Record<'cv' | 'surat', string>>; waitlistedAt?: string; completion?: { state: 'submitted' | 'revision' | 'approved'; message: string; submittedAt: string; approvedAt?: string }; survey?: { scores: number[]; comment: string; at: string }; surveySubmitted?: boolean; history: { at: string; text: string }[] };
+export type PreviewSettings = { open: boolean; deadline: string; announcement: string; contact: string; divisions: { name: string; quota: number }[] };

@@ -1,5 +1,2 @@
-import { redirect } from "next/navigation";
-
-export default function DokumenPage() {
-  redirect("/slot");
-}
+import {redirect} from 'next/navigation';
+export default function Page(){redirect('/informasi');}

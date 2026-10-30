@@ -4,7 +4,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 type Table<Row, Required extends keyof Row, Relationships extends { foreignKeyName: string; columns: string[]; isOneToOne: boolean; referencedRelation: string; referencedColumns: string[] }[] = []> = {
   Row: Row; Insert: Pick<Row, Required> & Partial<Row>; Update: Partial<Row>; Relationships: Relationships;
 };
-type Status = "pending" | "diterima" | "ditolak" | "dibatalkan";
+type Status = "pending" | "diterima" | "ditolak" | "dibatalkan" | "perbaikan" | "diperiksa" | "tunggu" | "selesai";
 type Applicant = {
   id: string; nama: string; email: string; no_hp: string; asal_kampus: string; jurusan: string; nim: string;
   divisi_id: string | null; tanggal_mulai: string; tanggal_selesai: string;

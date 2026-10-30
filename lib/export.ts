@@ -10,7 +10,6 @@ export const exportHeaders = [
   "No. HP",
   "Asal Kampus",
   "Jurusan",
-  "NIM",
   "Divisi",
   "Tanggal Mulai",
   "Tanggal Selesai",
@@ -46,7 +45,7 @@ export async function createXlsx(rows: ExportRow[]): Promise<Buffer> {
   }));
   worksheet.getRow(1).font = { bold: true };
   worksheet.views = [{ state: "frozen", ySplit: 1 }];
-  worksheet.autoFilter = { from: "A1", to: `Q${rows.length + 1}` };
+  worksheet.autoFilter = { from: "A1", to: `${worksheet.getColumn(exportHeaders.length).letter}${rows.length + 1}` };
 
   for (const row of rows) {
     worksheet.addRow(row.map((value) =>

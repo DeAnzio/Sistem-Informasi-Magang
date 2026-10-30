@@ -1,0 +1,11 @@
+import 'server-only';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import type { PreviewApplicant, PreviewSettings } from './preview-types';
+export const previewDir = path.join(process.cwd(), '.local-preview-data');
+export const initialSettings: PreviewSettings = { open: true, deadline: '', announcement: 'Siapkan CV dan surat pengantar sebelum mengajukan magang.', contact: 'Hubungi petugas pengelola layanan untuk informasi lebih lanjut.', divisions: [{ name: 'Tata usaha', quota: 5 }, { name: 'Survei dan pemetaan', quota: 5 }, { name: 'Penetapan hak dan pendaftaran', quota: 5 }] };
+export type PreviewDB = { applicants: PreviewApplicant[]; settings: PreviewSettings };
+export async function readPreview(): Promise<PreviewDB> { try { return JSON.parse(await fs.readFile(path.join(previewDir, 'data.json'), 'utf8')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; return { applicants: [], settings: initialSettings }; } }
+let queue = Promise.resolve();
+export function mutatePreview<T>(fn: (db: PreviewDB) => Promise<T> | T): Promise<T> { const job = queue.then(async () => { const db = await readPreview(); const result = await fn(db); await fs.mkdir(previewDir, { recursive: true }); const tmp = path.join(previewDir, 'data.tmp'); await fs.writeFile(tmp, JSON.stringify(db, null, 2)); await fs.rename(tmp, path.join(previewDir, 'data.json')); return result; }); queue = job.then(() => {}, () => {}); return job; }
+export function hasCapacity(db: PreviewDB, division: string, start: string, end: string, except: string) { const d = db.settings.divisions.find(x => x.name === division); if (!d) return false; const events: [number, number][] = [[Date.parse(start), 1], [Date.parse(end) + 86400000, -1]]; for (const p of db.applicants) if (p.id !== except && ['diterima','selesai'].includes(p.status) && p.divisi === division) { events.push([Date.parse(p.tanggal_mulai), 1], [Date.parse(p.tanggal_selesai) + 86400000, -1]); } const grouped = new Map<number, number>(); events.forEach(([day,n]) => grouped.set(day,(grouped.get(day) || 0)+n)); let total=0; for (const [day,n] of [...grouped].sort((a,b)=>a[0]-b[0])) { total+=n; if (day>=Date.parse(start) && day<=Date.parse(end) && total>d.quota) return false; } return true; }

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Layanan Magang | BPN D.I. Yogyakarta",
-  description: "Informasi layanan magang dan praktek kerja lapangan BPN D.I. Yogyakarta.",
+  title: "Layanan Magang | Kantor Pertanahan Kota Yogyakarta",
+  description: "Informasi layanan magang dan praktek kerja lapangan Kantor Pertanahan Kota Yogyakarta.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

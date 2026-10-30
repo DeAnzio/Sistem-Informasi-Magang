@@ -20,7 +20,7 @@ export function buildApplicantQuery(supabase: SupabaseClient<Database>, filters:
   );
   if (filters.q) {
     const search = escapeApplicantSearchTerm(filters.q);
-    query = query.or(`nama.imatch.${search},nim.imatch.${search},asal_kampus.imatch.${search}`);
+    query = query.or(`nama.imatch.${search},email.imatch.${search},asal_kampus.imatch.${search}`);
   }
   if (filters.phase) {
     const today = hariIniWIB();

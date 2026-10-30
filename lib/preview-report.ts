@@ -1,0 +1,6 @@
+import type { PreviewApplicant } from './preview-types';
+export function inPeriod(p: PreviewApplicant, from: string, to: string) { const day = p.created.slice(0,10); return (!from || day >= from) && (!to || day <= to); }
+export function participantsOn(rows: PreviewApplicant[], day: string, division = '') { return rows.filter(p => ['diterima','selesai'].includes(p.status) && (!division || p.divisi === division) && p.tanggal_mulai <= day && p.tanggal_selesai >= day); }
+export function monthDays(month: string) { if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return []; const [y,m] = month.split('-').map(Number); return Array.from({length:new Date(Date.UTC(y,m,0)).getUTCDate()},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`); }
+export function groupCount(rows: PreviewApplicant[], field: 'asal_kampus'|'divisi') { const grouped = new Map<string,number>(); rows.forEach(p=>{const key=p[field]||'Belum ditempatkan';grouped.set(key,(grouped.get(key)||0)+1);}); return [...grouped].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])); }
+export function csvText(rows: string[][]) { return '\uFEFF'+rows.map(row=>row.map(v=>'"'+(/^[=+\-@\t\r]/.test(v)?"'":'')+v.replaceAll('"','""')+'"').join(',')).join('\r\n'); }

@@ -1,4 +1,4 @@
-export type ApplicantStatus = "pending" | "diterima" | "ditolak" | "dibatalkan";
+export type ApplicantStatus = "pending" | "diterima" | "ditolak" | "dibatalkan" | "perbaikan" | "diperiksa" | "tunggu" | "selesai";
 
 export type ApplicantSource = "online" | "manual";
 

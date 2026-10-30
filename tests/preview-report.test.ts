@@ -1,0 +1,9 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {participantsOn, monthDays, inPeriod, groupCount, csvText} from '../lib/preview-report';
+import {letterHTML} from '../lib/preview-letter';
+import type {PreviewApplicant} from '../lib/preview-types';
+const p={id:'1',nama:'<script>uji</script>',status:'diterima',divisi:'A',asal_kampus:'Kampus A',created:'2026-10-29T12:00:00Z',tanggal_mulai:'2026-10-01',tanggal_selesai:'2026-11-01',nim:'001',jurusan:'Teknik'} as PreviewApplicant;
+test('kalender memasukkan hari mulai/selesai dan hanya peserta diterima sesuai divisi',()=>{const rows=[p,{...p,id:'2',status:'pending' as const}];assert.equal(participantsOn(rows,'2026-10-01').length,1);assert.equal(participantsOn(rows,'2026-11-01','A').length,1);assert.equal(participantsOn(rows,'2026-11-02').length,0);assert.equal(participantsOn([{...p,status:'selesai'}],'2026-10-15').length,1);assert.equal(participantsOn([{...p,status:'tunggu'}],'2026-10-15').length,0);assert.equal(participantsOn(rows,'2026-10-15','B').length,0);assert.equal(monthDays('2028-02').length,29);assert.equal(monthDays('2026-02').length,28);assert.deepEqual(monthDays('2026-13'),[]);});
+test('laporan memakai tanggal pengajuan, mendukung batas inklusif dan mengelompokkan data',()=>{assert(inPeriod(p,'2026-10-29','2026-10-29'));assert(!inPeriod(p,'2026-10-30',''));assert(!inPeriod(p,'','2026-10-28'));assert.deepEqual(groupCount([p,{...p,id:'2'}],'asal_kampus'),[['Kampus A',2]]);assert.deepEqual(groupCount([{...p,divisi:''}],'divisi'),[['Belum ditempatkan',1]]);assert(csvText([['=1+1','"contoh"']]).includes("'=1+1"));});
+test('draf surat menandai dokumen nonresmi dan mengescape identitas pendaftar',()=>{const html=letterHTML(p);assert(html.includes('BUKAN SURAT RESMI'));assert(html.includes('&lt;script&gt;'));assert(!html.includes('<script>'));assert(!html.includes('NIM / NIS'));});

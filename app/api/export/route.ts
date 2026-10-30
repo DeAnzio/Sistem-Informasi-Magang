@@ -11,14 +11,18 @@ import type { ApplicantStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-const statusSchema = z.enum(["pending", "diterima", "ditolak", "dibatalkan"]);
+const statusSchema = z.enum(["pending", "diterima", "ditolak", "dibatalkan", "perbaikan", "diperiksa", "tunggu", "selesai"]);
 const phaseSchema = z.enum(["akan_datang", "aktif", "selesai"]);
 const sortSchema = z.enum(["terbaru", "tanggal_mulai", "nama"]);
 const dateSchema = z.iso.date();
 const maxExportRows = 5_000;
 
 const statusLabels: Record<ApplicantStatus, string> = {
-  pending: "Menunggu verifikasi",
+  pending: "Menunggu pemeriksaan",
+  perbaikan: "Perlu perbaikan",
+  diperiksa: "Pemeriksaan ulang",
+  tunggu: "Daftar tunggu",
+  selesai: "Selesai magang",
   diterima: "Diterima",
   ditolak: "Ditolak",
   dibatalkan: "Dibatalkan",
@@ -140,7 +144,6 @@ export async function GET(request: Request) {
         applicant.no_hp,
         applicant.asal_kampus,
         applicant.jurusan,
-        applicant.nim,
         divisionData?.nama ?? "",
         formatDate(applicant.tanggal_mulai),
         formatDate(applicant.tanggal_selesai),

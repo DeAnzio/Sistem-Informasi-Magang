@@ -35,6 +35,7 @@ export function fasePemagang(
   mulai: string,
   selesai: string,
 ): FasePemagang | null {
+  if (status === "selesai") return "selesai";
   if (status !== "diterima") return null;
 
   const hariIni = hariIniWIB();

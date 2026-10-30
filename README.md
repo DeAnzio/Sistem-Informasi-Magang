@@ -1,5 +1,11 @@
 # Portal Permagangan
 
+> Versi portal baru: ikuti [panduan integrasi Supabase](docs/INTEGRASI_PORTAL_SUPABASE.md).
+> Database yang sudah memakai migrasi portal 01–03 memerlukan tambahan 04 sebelum kode ini digunakan.
+> Jangan menjalankan ulang schema.sql atau migrasi fondasi pada database tersebut.
+> `npm run dev:portal` menjalankan portal Supabase di port 3002; `npm run dev:preview` adalah simulasi lokal terpisah.
+> Petunjuk fondasi di bawah menjadi referensi untuk instalasi awal, bukan langkah upgrade portal.
+
 Portal informasi dan pendaftaran permagangan Kantor Pertanahan Kota Yogyakarta. Aplikasi menyediakan halaman informasi publik, formulir pendaftaran online, serta panel admin untuk mengelola kuota, memverifikasi pendaftar, dan memantau peserta.
 
 ## Teknologi

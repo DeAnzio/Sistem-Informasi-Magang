@@ -13,9 +13,13 @@
 
 # testing
 /coverage
+/.local-preview-data/
+/.presentation-build-humas/
 
 # next.js
 /.next/
+/.next-portal-test/
+/.next-portal-local/
 /out/
 
 # production
